@@ -1,9 +1,8 @@
 # Code Map (Where to Look for What)
 
-This repository supports two backend run modes:
+This repository uses **microservice mode (recommended)**:
 
-1) **Microservice mode (recommended)**: API Gateway (port 8000) + Matching Service (port 8001)
-2) **Monolith mode (legacy/dev convenience)**: single FastAPI app with endpoints under `src/api/`
+- API Gateway (port 8000) + Matching Service (port 8001)
 
 If you're using the React frontend, you are typically using **microservice mode** via the gateway at `http://localhost:8000`.
 
@@ -20,14 +19,6 @@ If you're using the React frontend, you are typically using **microservice mode*
   - Matching microservice (FastAPI) on `http://localhost:8001`
   - Implements `/api/v1/match`, `/api/v1/stats`, `/health`
   - Uses the agent pipeline to score candidates
-
-- `src/api/main.py`
-  - **Legacy** monolith FastAPI app (single process API mode)
-  - Contains its own `/api/v1/match` implementation (similar responsibilities, separate code path)
-
-- `main.py`
-  - Convenience runner that starts the monolith (`src/api/main.py`)
-  - Use `start_services.bat` / `start_all_services.bat` for microservice mode
 
 ---
 

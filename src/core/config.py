@@ -4,6 +4,7 @@ Configuration settings for the Resume Matching System.
 from pydantic_settings import BaseSettings
 from dotenv import load_dotenv
 import os
+from pydantic import field_validator
 
 # Load environment variables from .env file
 load_dotenv()
@@ -29,7 +30,7 @@ class Settings(BaseSettings):
 
     # Application Configuration
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    DEBUG: bool = os.getenv("DEBUG", "False").lower() == "true"
+    DEBUG: bool = False
 
     # API Configuration
     API_HOST: str = "0.0.0.0"
@@ -38,6 +39,23 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+
+    @field_validator("DEBUG", mode="before")
+    def _parse_debug(cls, v):
+        """
+        Accept common non-boolean environment values (e.g., DEBUG=release) without crashing.
+        """
+        if isinstance(v, bool):
+            return v
+        if v is None:
+            return False
+        s = str(v).strip().lower()
+        if s in {"1", "true", "yes", "y", "on", "debug"}:
+            return True
+        if s in {"0", "false", "no", "n", "off", "release", "prod", "production"}:
+            return False
+        # Default safe value
+        return False
 
     def validate_openai_key(self) -> bool:
         """Validate that OpenAI API key is configured."""

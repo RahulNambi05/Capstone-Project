@@ -23,6 +23,6 @@ call npm run dev
 
 echo.
 echo ========================================================================
-echo Frontend started! Open http://localhost:3000 in your browser
+echo Frontend started! Open http://localhost:5173 in your browser
 echo ========================================================================
 echo.

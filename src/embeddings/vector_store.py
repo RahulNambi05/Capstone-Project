@@ -5,6 +5,7 @@ Uses ChromaDB for persistent storage and LangChain's OpenAI embeddings.
 import logging
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
+import re
 
 import chromadb
 from langchain.schema import Document
@@ -292,7 +293,94 @@ class ResumeVectorStore:
 
         except Exception as e:
             logger.error(f"Error performing semantic search: {str(e)}", exc_info=True)
+            # Fallback: keyword-based retrieval using Chroma's where_document contains.
+            # This keeps the system usable when outbound connectivity to the embeddings API
+            # is blocked/unavailable (e.g., locked-down networks during demos).
+            try:
+                fallback = self._keyword_fallback_search(query=query, top_k=top_k or settings.TOP_K)
+                if fallback:
+                    logger.warning(
+                        f"Semantic search fallback used (keyword search). Returned {len(fallback)} results."
+                    )
+                return fallback
+            except Exception as fe:
+                logger.error(f"Keyword fallback search also failed: {str(fe)}", exc_info=True)
+                return []
+
+    def _keyword_fallback_search(self, query: str, top_k: int) -> List[Tuple[Document, float]]:
+        """
+        Lightweight lexical fallback when embeddings-based semantic search is unavailable.
+
+        Strategy:
+        - Extract a small set of keywords from the query
+        - Use Chroma's `where_document: {$contains: ...}` to fetch matching chunks
+        - Aggregate by resume_id and score by number of keyword hits
+
+        Returns a list of (Document, score) where score is normalized to [0, 1].
+        """
+        if not query or not str(query).strip():
             return []
+
+        text = str(query).lower()
+        normalized = re.sub(r"[^a-z0-9\\s]", " ", text)
+        tokens = [t for t in normalized.split() if len(t) >= 4]
+
+        stop = {
+            "required", "skills", "preferred", "experience", "level", "role", "summary",
+            "looking", "candidate", "position", "responsibilities", "requirements",
+            "with", "and", "for", "that", "this", "will", "have", "has", "from", "into",
+        }
+        keywords: List[str] = []
+        seen = set()
+        for t in tokens:
+            if t in stop or t in seen:
+                continue
+            keywords.append(t)
+            seen.add(t)
+            if len(keywords) >= 6:
+                break
+
+        if not keywords:
+            return []
+
+        # Pull a small pool per keyword; aggregate across keywords.
+        per_kw_limit = max(top_k * 3, 25)
+
+        by_resume: Dict[str, Dict[str, Any]] = {}
+        for kw in keywords:
+            res = self.collection.get(
+                where_document={"$contains": kw},
+                include=["documents", "metadatas"],
+                limit=per_kw_limit,
+            )
+            docs = res.get("documents") or []
+            metas = res.get("metadatas") or []
+            for doc_text, meta in zip(docs, metas):
+                meta = meta or {}
+                resume_id = str(meta.get("resume_id") or "unknown")
+                entry = by_resume.get(resume_id)
+                if entry is None:
+                    by_resume[resume_id] = {
+                        "doc": Document(page_content=doc_text or "", metadata=meta),
+                        "hits": 1,
+                    }
+                else:
+                    entry["hits"] += 1
+
+        # Convert to (Document, score) and sort.
+        results: List[Tuple[Document, float]] = []
+        denom = float(len(keywords)) if keywords else 1.0
+        for resume_id, entry in by_resume.items():
+            score = float(entry.get("hits", 0)) / denom
+            # Clamp to [0, 1] to match semantic score expectations upstream.
+            if score < 0:
+                score = 0.0
+            elif score > 1:
+                score = 1.0
+            results.append((entry["doc"], score))
+
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results[:top_k]
 
     def _filter_results(
         self,

@@ -47,11 +47,6 @@
           <mxGeometry x="900" y="490" width="220" height="70" as="geometry"/>
         </mxCell>
 
-        <!-- Optional legacy box -->
-        <mxCell id="legacy" value="Legacy (Optional)&#xa;Monolith API&#xa;src/api/main.py (main.py)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#64748B;dashed=1;fontColor=#E5E7EB;" vertex="1" parent="1">
-          <mxGeometry x="40" y="20" width="220" height="70" as="geometry"/>
-        </mxCell>
-
         <!-- Edges -->
         <mxCell id="e1" value="REST JSON" style="endArrow=block;html=1;strokeColor=#94A3B8;fontColor=#E5E7EB;" edge="1" parent="1" source="fe" target="gw">
           <mxGeometry relative="1" as="geometry"/>
@@ -88,4 +83,3 @@
     </mxGraphModel>
   </diagram>
 </mxfile>
-
