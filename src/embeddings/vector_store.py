@@ -3,6 +3,7 @@ Vector store module for managing resume embeddings and semantic search.
 Uses ChromaDB for persistent storage and LangChain's OpenAI embeddings.
 """
 import logging
+import os
 from typing import List, Dict, Any, Optional, Tuple
 from pathlib import Path
 import re
@@ -42,6 +43,8 @@ class ResumeVectorStore:
         self.persist_dir = persist_dir or settings.CHROMA_PERSIST_DIR
         self.collection_name = collection_name
         self.embedding_model = embedding_model or settings.OPENAI_EMBEDDING_MODEL
+        self._disable_embeddings = os.getenv("DISABLE_OPENAI_EMBEDDINGS", "0") == "1"
+        self._embeddings_available = True
 
         # Create persist directory if it doesn't exist
         Path(self.persist_dir).mkdir(parents=True, exist_ok=True)
@@ -233,6 +236,9 @@ class ResumeVectorStore:
         try:
             logger.info(f"Performing semantic search with query: '{query[:100]}...'")
 
+            if self._disable_embeddings or not getattr(settings, "OPENAI_API_KEY", None) or not self._embeddings_available:
+                raise RuntimeError("Embeddings disabled/unavailable; using keyword fallback")
+
             # Get query embedding using OpenAI embeddings
             logger.debug("Generating query embedding...")
             query_embedding = self.embeddings.embed_query(query)
@@ -292,6 +298,8 @@ class ResumeVectorStore:
             return results
 
         except Exception as e:
+            # If embeddings are blocked/unavailable, avoid retrying on every request.
+            self._embeddings_available = False
             logger.error(f"Error performing semantic search: {str(e)}", exc_info=True)
             # Fallback: keyword-based retrieval using Chroma's where_document contains.
             # This keeps the system usable when outbound connectivity to the embeddings API
@@ -321,24 +329,51 @@ class ResumeVectorStore:
         if not query or not str(query).strip():
             return []
 
-        text = str(query).lower()
-        normalized = re.sub(r"[^a-z0-9\\s]", " ", text)
-        tokens = [t for t in normalized.split() if len(t) >= 4]
+        text = str(query)
+        normalized = re.sub(r"[^A-Za-z0-9\s]", " ", text)
+        raw_tokens = [t for t in normalized.split() if t]
+
+        # Keep longer tokens by default, but allow a small set of short "skill-like" tokens.
+        allow_short = {"api", "sql", "ux", "ui", "aws", "gcp", "hr"}
+        tokens: List[str] = []
+        for t in raw_tokens:
+            tl = t.lower()
+            if len(tl) >= 4 or tl in allow_short:
+                tokens.append(tl)
 
         stop = {
             "required", "skills", "preferred", "experience", "level", "role", "summary",
             "looking", "candidate", "position", "responsibilities", "requirements",
             "with", "and", "for", "that", "this", "will", "have", "has", "from", "into",
         }
+        # Prefer explicit required skills if present in the query string (CandidateRetriever includes them),
+        # then fill remaining slots with other non-stopword tokens.
         keywords: List[str] = []
         seen = set()
-        for t in tokens:
-            if t in stop or t in seen:
-                continue
-            keywords.append(t)
-            seen.add(t)
-            if len(keywords) >= 6:
-                break
+
+        lower_text = str(query).lower()
+        m = re.search(r"required\s+skills\s*:\s*(.+)$", lower_text)
+        if m:
+            skills_part = m.group(1)
+            skills_norm = re.sub(r"[^a-z0-9\s]", " ", skills_part)
+            for t in skills_norm.split():
+                tl = t.strip().lower()
+                if not tl or tl in stop or tl in seen:
+                    continue
+                if len(tl) >= 4 or tl in allow_short:
+                    keywords.append(tl)
+                    seen.add(tl)
+                if len(keywords) >= 6:
+                    break
+
+        if len(keywords) < 6:
+            for t in tokens:
+                if t in stop or t in seen:
+                    continue
+                keywords.append(t)
+                seen.add(t)
+                if len(keywords) >= 6:
+                    break
 
         if not keywords:
             return []
@@ -346,32 +381,70 @@ class ResumeVectorStore:
         # Pull a small pool per keyword; aggregate across keywords.
         per_kw_limit = max(top_k * 3, 25)
 
+        def _keyword_variants(kw: str) -> List[str]:
+            """
+            Chroma `where_document: {$contains: ...}` matching is case-sensitive.
+            Try a small set of casing variants to approximate case-insensitive search.
+            """
+            k = (kw or "").strip()
+            if not k:
+                return []
+
+            variants = {k, k.lower(), k.upper(), k.capitalize(), k.title()}
+
+            # Special casing for common skills/acronyms that use mixed caps.
+            special = {
+                "postgresql": "PostgreSQL",
+                "mysql": "MySQL",
+                "rest": "REST",
+                "api": "API",
+                "sql": "SQL",
+                "ux": "UX",
+                "ui": "UI",
+                "aws": "AWS",
+                "gcp": "GCP",
+                "hris": "HRIS",
+                "ci/cd": "CI/CD",
+            }
+            if k.lower() in special:
+                variants.add(special[k.lower()])
+
+            # Deduplicate while keeping a stable order.
+            ordered: List[str] = []
+            seen_local = set()
+            for v in variants:
+                if v and v not in seen_local:
+                    ordered.append(v)
+                    seen_local.add(v)
+            return ordered
+
         by_resume: Dict[str, Dict[str, Any]] = {}
         for kw in keywords:
-            res = self.collection.get(
-                where_document={"$contains": kw},
-                include=["documents", "metadatas"],
-                limit=per_kw_limit,
-            )
-            docs = res.get("documents") or []
-            metas = res.get("metadatas") or []
-            for doc_text, meta in zip(docs, metas):
-                meta = meta or {}
-                resume_id = str(meta.get("resume_id") or "unknown")
-                entry = by_resume.get(resume_id)
-                if entry is None:
-                    by_resume[resume_id] = {
-                        "doc": Document(page_content=doc_text or "", metadata=meta),
-                        "hits": 1,
-                    }
-                else:
-                    entry["hits"] += 1
+            for qkw in _keyword_variants(kw):
+                res = self.collection.get(
+                    where_document={"$contains": qkw},
+                    include=["documents", "metadatas"],
+                    limit=per_kw_limit,
+                )
+                docs = res.get("documents") or []
+                metas = res.get("metadatas") or []
+                for doc_text, meta in zip(docs, metas):
+                    meta = meta or {}
+                    resume_id = str(meta.get("resume_id") or "unknown")
+                    entry = by_resume.get(resume_id)
+                    if entry is None:
+                        by_resume[resume_id] = {
+                            "doc": Document(page_content=doc_text or "", metadata=meta),
+                            "hit_keywords": {kw},
+                        }
+                    else:
+                        entry["hit_keywords"].add(kw)
 
         # Convert to (Document, score) and sort.
         results: List[Tuple[Document, float]] = []
         denom = float(len(keywords)) if keywords else 1.0
         for resume_id, entry in by_resume.items():
-            score = float(entry.get("hits", 0)) / denom
+            score = float(len(entry.get("hit_keywords") or set())) / denom
             # Clamp to [0, 1] to match semantic score expectations upstream.
             if score < 0:
                 score = 0.0

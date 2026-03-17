@@ -383,7 +383,7 @@ _SKILL_EXPANSION_TRIGGERS: Dict[str, List[str]] = {
         "frontend", "front-end", "front end",
         "user experience", "ux", "ui", "user interface", "interfaces", "interface",
         "web application", "web applications", "web app", "web apps",
-        "usability", "accessibility", "responsive", "visual", "interaction", "interactions",
+        "usability", "accessibility", "responsive", "interaction", "interactions",
         "design system", "design systems",
     ],
     "data analysis": [

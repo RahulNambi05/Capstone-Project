@@ -3,6 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List
 
+import re
+
 from src.agents.skill_scorer import SkillScorer, SkillScoreResult
 
 
@@ -56,13 +58,36 @@ class SkillMatchingAgent:
         elif isinstance(top_skills_raw, list):
             candidate_skills = [str(s).strip() for s in top_skills_raw if str(s).strip()]
 
+        resume_text_raw = ((candidate.get("resume_text", "") or "") or (resume_text_fallback or ""))[:20000]
+        resume_norm = re.sub(r"[^a-z0-9\s]", " ", resume_text_raw.lower())
+        resume_norm = re.sub(r"\s+", " ", resume_norm).strip()
+
+        extracted_required_hits: List[str] = []
+        for skill in (getattr(parsed_job, "required_skills", None) or []):
+            if not isinstance(skill, str):
+                continue
+            skill_norm = re.sub(r"[^a-z0-9\s]", " ", skill.lower())
+            skill_norm = re.sub(r"\s+", " ", skill_norm).strip()
+            if not skill_norm:
+                continue
+            if skill_norm in resume_norm:
+                extracted_required_hits.append(skill)
+
+        # If metadata top_skills is missing/empty, use resume-text extraction.
+        # If metadata is present, still merge in any required skills explicitly found in the resume text
+        # to prevent 0% coverage when metadata is incomplete.
         if not candidate_skills:
-            resume_text = ((candidate.get("resume_text", "") or "") or (resume_text_fallback or "")).lower()
-            candidate_skills = [
-                skill
-                for skill in (getattr(parsed_job, "required_skills", None) or [])
-                if isinstance(skill, str) and skill.lower() in resume_text
-            ]
+            candidate_skills = extracted_required_hits
+        elif extracted_required_hits:
+            merged: List[str] = []
+            seen = set()
+            for s in (candidate_skills + extracted_required_hits):
+                key = str(s).strip().lower()
+                if not key or key in seen:
+                    continue
+                merged.append(str(s).strip())
+                seen.add(key)
+            candidate_skills = merged
 
         if not candidate_skills:
             candidate_skills = ["unknown"]

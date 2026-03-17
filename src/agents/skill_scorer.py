@@ -108,16 +108,20 @@ class SkillScorer:
         self.model_name = model_name
         self.similarity_threshold = similarity_threshold
 
+        self.model = None
         try:
-            # Load the sentence transformer model once per SkillScorer instance
-            self.model = SentenceTransformer(model_name)
+            # Prefer offline/local usage for speed and reliability in restricted networks.
+            # If the model isn't available locally, fall back to lexical matching.
+            self.model = SentenceTransformer(model_name, local_files_only=True)
             logger.info(
                 f"SkillScorer initialized with model '{model_name}' "
                 f"and threshold {similarity_threshold}"
             )
         except Exception as e:
-            logger.error(f"Error loading sentence-transformer model: {str(e)}")
-            raise
+            logger.warning(
+                f"SkillScorer could not load model '{model_name}' locally; "
+                f"falling back to lexical matching. Error: {e!r}"
+            )
 
     def compute_skill_overlap_score(
         self,
@@ -275,7 +279,33 @@ class SkillScorer:
         missing = []
         details = {}
 
-        # Encode all skills once
+        # Fallback: lexical containment matching when the semantic model isn't available.
+        if self.model is None:
+            for job_skill in job_skills:
+                best_candidate = None
+                is_match = False
+
+                for cand in candidate_skills:
+                    if job_skill == cand or job_skill in cand or cand in job_skill:
+                        best_candidate = cand
+                        is_match = True
+                        break
+
+                details[job_skill] = {
+                    "method": "lexical",
+                    "matched_candidate_skill": best_candidate,
+                    "threshold": None,
+                    "is_match": is_match,
+                }
+
+                if is_match:
+                    matched.append(job_skill)
+                else:
+                    missing.append(job_skill)
+
+            return matched, missing, details
+
+        # Encode all skills once (semantic path)
         candidate_embeddings = self.model.encode(candidate_skills, convert_to_tensor=True)
         job_embeddings = self.model.encode(job_skills, convert_to_tensor=True)
 
@@ -291,6 +321,7 @@ class SkillScorer:
             best_similarity = similarities[best_match_idx].item()
 
             details[job_skill] = {
+                "method": "semantic",
                 "similarity": round(best_similarity, 4),
                 "matched_candidate_skill": candidate_skills[best_match_idx] if best_similarity > 0 else None,
                 "threshold": self.similarity_threshold,

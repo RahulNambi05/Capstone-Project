@@ -25,6 +25,7 @@ from langchain.schema import SystemMessage, HumanMessage
 from src.core.config import settings
 from src.retrieval.job_parser import parse_job_description, parse_job_description_fast
 from src.retrieval.candidate_retriever import retrieve_candidates
+from src.embeddings.vector_store import get_vector_store
 from src.agents.skill_scorer import SkillScorer
 from src.services.agent_pipeline import AgentPipeline
 from src.agents.explanation_agent import ExplanationAgent
@@ -580,13 +581,47 @@ async def match_candidates(request: MatchRequest) -> MatchResponse:
             if isinstance(c, dict)
         }
 
+        # Improve skill extraction reliability: retrieval returns only the best matching chunk per resume.
+        # For skill matching we want a broader resume text window, so we pull more chunks by resume_id
+        # from Chroma and pass a capped concatenation as a fallback to the agents.
+        full_resume_text_cache: Dict[str, str] = {}
+
+        def _get_full_resume_text(resume_id: str) -> str:
+            rid = str(resume_id or "unknown")
+            if rid in full_resume_text_cache:
+                return full_resume_text_cache[rid]
+
+            # Default: the retrieved chunk.
+            chunk_text = resume_text_by_id.get(rid, "") or ""
+            try:
+                vs = get_vector_store()
+                if vs is None:
+                    full_resume_text_cache[rid] = chunk_text
+                    return chunk_text
+
+                res = vs.collection.get(
+                    where={"resume_id": rid},
+                    include=["documents"],
+                    limit=200,
+                )
+                docs = res.get("documents") or []
+                full = " ".join([d for d in docs if isinstance(d, str) and d.strip()])
+                full = (full or chunk_text)[:20000]  # cap to keep things fast
+                full_resume_text_cache[rid] = full
+                return full
+            except Exception as e:
+                logger.debug(f"Full resume_text fallback failed for resume_id={rid}: {e!r}")
+                full_resume_text_cache[rid] = chunk_text
+                return chunk_text
+
         for rank, candidate in enumerate(candidates, 1):
             try:
                 resume_id = candidate.get("resume_id", "unknown")
+                resume_text_full = _get_full_resume_text(resume_id)
                 eval_result = _agent_pipeline.evaluate_candidate(
                     candidate=candidate,
                     parsed_job=parsed_job,
-                    resume_text_fallback=resume_text_by_id.get(resume_id, ""),
+                    resume_text_fallback=resume_text_full or resume_text_by_id.get(resume_id, ""),
                 )
 
                 top_skills_raw = eval_result.skill.top_skills_raw

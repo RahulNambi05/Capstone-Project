@@ -121,6 +121,17 @@ class AgentPipeline:
         matched = [_pretty_skill(s) for s in (skill.skill_score.matched_skills or []) if _pretty_skill(s)]
         missing_required = [_pretty_skill(s) for s in (skill.skill_score.missing_required_skills or []) if _pretty_skill(s)]
 
+        # If the semantic overlap scorer can't confidently label matches but we did extract
+        # some candidate skill signals, use those for the Strengths bullets (explanation only).
+        if not matched:
+            extracted_signals = [
+                _pretty_skill(s)
+                for s in (skill.candidate_skills or [])
+                if isinstance(s, str) and s.strip() and s.strip().lower() != "unknown" and _pretty_skill(s)
+            ]
+            if extracted_signals:
+                matched = extracted_signals[:3]
+
         strengths_txt = ", ".join(matched[:3]) if matched else ""
         gaps_txt = ", ".join(missing_required[:3]) if missing_required else ""
 
