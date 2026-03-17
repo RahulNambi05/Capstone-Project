@@ -1,0 +1,25 @@
+# Backend dependencies
+#
+# Notes:
+# - Versions are expressed as minimums (>=) to allow installing the newest
+#   compatible releases available in your environment at install time.
+# - If you need fully reproducible builds, pin exact versions after testing.
+
+fastapi>=0.109.0
+uvicorn>=0.27.0
+httpx>=0.27.0
+
+langchain>=0.1.13
+langchain-openai>=0.1.1
+langchain-community>=0.0.29
+
+chromadb>=0.4.24
+sentence-transformers>=2.2.2
+numpy>=1.26.0
+
+pydantic>=2.5.3
+pandas>=2.1.4
+python-dotenv>=1.0.0
+
+pypdf2>=3.0.1
+tiktoken>=0.5.2

@@ -1,0 +1,80 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  @apply scroll-smooth;
+}
+
+body {
+  @apply bg-dark-bg text-dark-text;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  @apply w-2;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-dark-surface;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-primary rounded-full;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-secondary;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.5s ease-out;
+}
+
+/* Utility classes */
+.glass-effect {
+  @apply backdrop-blur-md bg-dark-surface bg-opacity-50 border border-dark-border;
+}
+
+.btn-primary {
+  @apply px-6 py-2.5 bg-gradient-dark text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-primary/50 transition-all duration-200;
+}
+
+.btn-secondary {
+  @apply px-6 py-2.5 bg-dark-surface border border-dark-border text-dark-text rounded-lg font-semibold hover:border-primary hover:text-primary transition-all duration-200;
+}
+
+.card {
+  @apply bg-dark-surface rounded-lg border border-dark-border p-6 hover:border-primary/50 transition-all duration-200;
+}
+
+.input-field {
+  @apply w-full bg-dark-surface border border-dark-border text-dark-text rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200;
+}
