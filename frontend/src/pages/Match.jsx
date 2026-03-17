@@ -33,6 +33,12 @@ function Match() {
       description:
         'We are looking for a senior backend developer with strong experience in Python, REST APIs, Docker, and PostgreSQL. The candidate should have experience building scalable microservices and cloud deployment.',
     },
+    {
+      title: 'Implicit HR',
+      icon: FaChartBar,
+      description:
+        'We need someone who manages employee-related processes, supports workplace policies, handles hiring activities, and ensures smooth organizational operations.',
+    },
   ]
 
   // Count words in text
@@ -114,6 +120,30 @@ function Match() {
     }
   }
 
+  const persistQueryTrends = (matchResponse) => {
+    try {
+      const key = 'rms_query_history'
+      const existing = safeJsonParse(localStorage.getItem(key), [])
+      const history = Array.isArray(existing) ? existing : []
+
+      const parsedJob = matchResponse?.parsed_job || {}
+      const requiredSkills = Array.isArray(parsedJob?.required_skills) ? parsedJob.required_skills : []
+      const roleCategory = String(parsedJob?.role_category || '').trim()
+      const experienceLevel = String(parsedJob?.experience_level || '').trim()
+
+      history.push({
+        ts: new Date().toISOString(),
+        role_category: roleCategory,
+        experience_level: experienceLevel,
+        required_skills: requiredSkills,
+      })
+
+      localStorage.setItem(key, JSON.stringify(history.slice(-50)))
+    } catch (e) {
+      console.warn('Failed to persist query trends:', e)
+    }
+  }
+
   const handleSubmit = async (e) => {
     e.preventDefault()
     setError('')
@@ -140,6 +170,7 @@ function Match() {
       }
 
       persistAnalyticsMetrics(data)
+      persistQueryTrends(data)
 
       const softSkillsData = data.candidates
         .filter((c) => c.soft_skills_assessment)

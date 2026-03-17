@@ -137,6 +137,11 @@ class JobDescriptionParser:
 
             # Parse and validate the response
             parsed = self._parse_response(response.content)
+            parsed.required_skills = _expand_skills(
+                text=jd_text,
+                extracted_skills=parsed.required_skills,
+                role_category=parsed.role_category,
+            )
 
             logger.info("Successfully parsed job description")
             return parsed
@@ -166,6 +171,11 @@ class JobDescriptionParser:
             ])
 
             parsed = self._parse_response(response.content)
+            parsed.required_skills = _expand_skills(
+                text=jd_text,
+                extracted_skills=parsed.required_skills,
+                role_category=parsed.role_category,
+            )
             token_usage = self._extract_token_usage(response)
 
             logger.info("Successfully parsed job description")
@@ -351,6 +361,50 @@ Ensure all values are valid according to the schema above. Return ONLY the JSON 
 # Fast (non-LLM) parser
 # ============================================================================
 
+_SKILL_EXPANSION_MAP: Dict[str, List[str]] = {
+    # High-level concepts -> related skill keywords.
+    # Keep values short and generic so they work across datasets.
+    "backend": ["api", "rest", "server", "database", "microservices"],
+    "frontend": ["ui", "ux", "react", "html", "css"],
+    "data analysis": ["python", "pandas", "numpy", "sql"],
+    "devops": ["docker", "kubernetes", "ci/cd", "cloud"],
+    "hr": ["recruitment", "employee relations", "performance management", "hr policy", "hris", "payroll", "onboarding", "compensation", "benefits"],
+}
+
+_SKILL_EXPANSION_TRIGGERS: Dict[str, List[str]] = {
+    # If any of these words/phrases are present, we expand the concept into related skills.
+    # Keep triggers broad but reasonably specific to avoid false positives.
+    "backend": [
+        "backend", "back-end", "back end",
+        "api", "apis", "rest", "service", "services", "microservice", "microservices",
+        "server", "database", "databases", "backend systems",
+    ],
+    "frontend": [
+        "frontend", "front-end", "front end",
+        "user experience", "ux", "ui", "user interface", "interfaces", "interface",
+        "web application", "web applications", "web app", "web apps",
+        "usability", "accessibility", "responsive", "visual", "interaction", "interactions",
+        "design system", "design systems",
+    ],
+    "data analysis": [
+        "data analysis", "analyze data", "analytics", "reporting", "dashboards",
+        "insights", "data-driven", "data driven",
+    ],
+    "devops": [
+        "devops", "dev ops",
+        "deployment", "deployments", "release", "releases",
+        "infrastructure", "ci/cd", "pipeline", "pipelines", "monitoring",
+        "containers", "containerization", "docker", "kubernetes", "cloud",
+    ],
+    "hr": [
+        "hr", "human resources", "people operations", "people ops",
+        "recruitment", "recruiting", "talent acquisition", "hiring", "hire",
+        "employee relations", "employee engagement", "performance management",
+        "onboarding", "offboarding", "payroll", "compensation", "benefits",
+        "hr policy", "policies", "compliance", "hris",
+    ],
+}
+
 _SKILL_PHRASES: List[str] = [
     # Languages
     "python", "java", "javascript", "typescript", "c++", "c#", "go", "golang", "ruby", "php", "scala", "r",
@@ -386,6 +440,13 @@ _ROLE_RULES: List[Tuple[str, str]] = [
     ("microservices", "backend"),
     ("api", "backend"),
     ("frontend", "frontend"),
+    ("user experience", "frontend"),
+    ("ux", "frontend"),
+    ("ui", "frontend"),
+    ("user interface", "frontend"),
+    ("web application", "frontend"),
+    ("web applications", "frontend"),
+    ("interface", "frontend"),
     ("react", "frontend"),
     ("devops", "devops"),
     ("kubernetes", "devops"),
@@ -395,6 +456,63 @@ _ROLE_RULES: List[Tuple[str, str]] = [
     ("qa", "qa_engineer"),
     ("test automation", "qa_engineer"),
 ]
+
+
+def _expand_skills(text: str, extracted_skills: List[str], role_category: str = "") -> List[str]:
+    """
+    Expand high-level concepts in a job description into related skills.
+
+    This improves semantic understanding when the job description uses broad terms
+    (e.g., "backend") without listing specific technologies.
+
+    - Detect high-level terms in the job text (case-insensitive)
+    - Optionally use inferred role_category as an additional signal
+    - Merge expanded skills + extracted skills
+    - Avoid duplicates (case-insensitive), preserve order
+    """
+    text_lower = (text or "").lower()
+    role_key = (role_category or "").strip().lower()
+
+    out: List[str] = []
+    seen: set[str] = set()
+
+    def _push(skill: str) -> None:
+        s = str(skill).strip()
+        if not s:
+            return
+        key = s.lower()
+        if key in seen:
+            return
+        out.append(s)
+        seen.add(key)
+
+    # Keep existing extraction as the primary signal.
+    for s in (extracted_skills or []):
+        _push(s)
+
+    def _has_trigger(concept: str) -> bool:
+        triggers = _SKILL_EXPANSION_TRIGGERS.get(concept, [])
+        for t in triggers:
+            tt = t.strip().lower()
+            if not tt:
+                continue
+
+            # Short tokens like "ui"/"ux" should match as whole words.
+            if len(tt) <= 2 and tt.isalnum():
+                if re.search(rf"\\b{re.escape(tt)}\\b", text_lower):
+                    return True
+                continue
+
+            if tt in text_lower:
+                return True
+        return False
+
+    for concept, expansions in _SKILL_EXPANSION_MAP.items():
+        if concept in text_lower or concept == role_key or _has_trigger(concept):
+            for e in expansions:
+                _push(e)
+
+    return out
 
 
 def _infer_experience_level(text_lower: str) -> str:
@@ -521,6 +639,9 @@ def _parse_job_description_fast_cached(jd_text: str) -> Dict[str, Any]:
         skills = _extract_keywords_fallback(text)
     exp = _infer_experience_level(text_lower)
     role = _infer_role_category(text_lower)
+
+    # Expand high-level concepts (e.g., "backend") into related skills.
+    skills = _expand_skills(text=text, extracted_skills=skills, role_category=role)
 
     return {
         "required_skills": skills or ["general"],

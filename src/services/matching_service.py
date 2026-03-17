@@ -612,8 +612,16 @@ async def match_candidates(request: MatchRequest) -> MatchResponse:
                         skill_score=eval_result.skill_score,
                         experience_level=candidate.get("metadata", {}).get("experience_level", "unknown"),
                         role_category=candidate.get("metadata", {}).get("role_category", "unknown"),
-                        matched_skills=eval_result.matched_skills,
-                        missing_skills=eval_result.missing_skills,
+                        matched_skills=[
+                            (s.upper() if str(s).strip().lower() in {"api", "sql", "ux", "ui", "hris", "aws", "gcp"} else str(s).strip().title())
+                            for s in (eval_result.matched_skills or [])
+                            if str(s).strip()
+                        ],
+                        missing_skills=[
+                            (s.upper() if str(s).strip().lower() in {"api", "sql", "ux", "ui", "hris", "aws", "gcp"} else str(s).strip().title())
+                            for s in (eval_result.missing_skills or [])
+                            if str(s).strip()
+                        ],
                         skill_coverage=eval_result.skill_coverage,
                         explanation=eval_result.explanation
                     )

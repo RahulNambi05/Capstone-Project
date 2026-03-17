@@ -24,8 +24,8 @@ REM Wait 3 seconds for gateway to initialize
 echo [Waiting 3 seconds for gateway initialization...]
 timeout /t 3 /nobreak
 
-REM Start Frontend on port 3000
-echo [3/3] Starting React Frontend on port 3000...
+REM Start Frontend on Vite default port 5173
+echo [3/3] Starting React Frontend (Vite) on port 5173...
 start "Resume Matching Frontend" cmd /k cd frontend && npm install && npm run dev
 
 echo.
@@ -34,12 +34,12 @@ echo Startup Complete!
 echo ========================================================================
 echo.
 echo Services started:
-echo   - React Frontend:    http://localhost:3000
+echo   - React Frontend:    http://localhost:5173
 echo   - API Gateway:       http://localhost:8000
 echo   - Matching Service:  http://localhost:8001
 echo.
 echo Documentation:
-echo   - Frontend:          http://localhost:3000/
+echo   - Frontend:          http://localhost:5173/
 echo   - Gateway Docs:      http://localhost:8000/docs
 echo   - Service Docs:      http://localhost:8001/docs
 echo.

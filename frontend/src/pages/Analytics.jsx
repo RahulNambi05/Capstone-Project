@@ -28,6 +28,12 @@ function Analytics() {
     bias: { total: 0, clean: 0, biased: 0, types: { age: 0, gender: 0, language: 0 } },
     soft: { count: 0, communication_total: 0, leadership_total: 0, problem_solving_total: 0 },
   })
+  const [queryTrends, setQueryTrends] = useState({
+    last50Count: 0,
+    topSkills: [],
+    roleCounts: [],
+    levelCounts: [],
+  })
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
@@ -82,6 +88,41 @@ function Analytics() {
     )
 
     setLocalMetrics({ queriesProcessed, bias, soft })
+
+    // Search trends (last 50 successful matches)
+    const history = safeJsonParse(localStorage.getItem('rms_query_history'), [])
+    const last50 = Array.isArray(history) ? history.slice(-50) : []
+
+    const skillCounts = {}
+    const roleCounts = {}
+    const levelCounts = {}
+
+    last50.forEach((h) => {
+      const skills = Array.isArray(h?.required_skills) ? h.required_skills : []
+      skills.forEach((s) => {
+        const k = String(s || '').trim().toLowerCase()
+        if (!k) return
+        skillCounts[k] = (skillCounts[k] || 0) + 1
+      })
+
+      const role = String(h?.role_category || '').trim().toLowerCase()
+      if (role) roleCounts[role] = (roleCounts[role] || 0) + 1
+
+      const lvl = String(h?.experience_level || '').trim().toLowerCase()
+      if (lvl) levelCounts[lvl] = (levelCounts[lvl] || 0) + 1
+    })
+
+    const toChart = (obj) =>
+      Object.entries(obj)
+        .map(([name, count]) => ({ name, count }))
+        .sort((a, b) => b.count - a.count)
+
+    setQueryTrends({
+      last50Count: last50.length,
+      topSkills: toChart(skillCounts).slice(0, 10),
+      roleCounts: toChart(roleCounts).slice(0, 8),
+      levelCounts: toChart(levelCounts).slice(0, 8),
+    })
   }, [safeJsonParse])
 
   const fetchData = useCallback(
@@ -266,6 +307,84 @@ function Analytics() {
               <p className="text-sm text-dark-text/60 mb-1">Total Queries</p>
               <p className="text-2xl font-bold text-blue-400">{localMetrics.queriesProcessed}</p>
               <p className="text-xs text-dark-text/50 mt-1">Stored in localStorage</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Hiring Analytics: Skill Demand & Search Trends */}
+        <div className="card glass-effect mb-8">
+          <div className="flex items-start justify-between gap-4 mb-4">
+            <div>
+              <h2 className="text-xl font-bold">Hiring Analytics (Last 50 Searches)</h2>
+              <p className="text-sm text-dark-text/60">
+                Based on successful `/match` queries stored locally ({queryTrends.last50Count}/50).
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-dark-surface/50 border border-dark-border rounded-xl p-5">
+              <h3 className="font-semibold mb-3">Skill Demand (Top Skills)</h3>
+              {queryTrends.topSkills.length === 0 ? (
+                <p className="text-sm text-dark-text/60">No search history yet. Run a few matches to populate this chart.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart data={queryTrends.topSkills} margin={{ top: 10, right: 20, left: 0, bottom: 40 }}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="name" stroke="#94a3b8" angle={-35} textAnchor="end" height={70} />
+                    <YAxis stroke="#94a3b8" allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                      }}
+                      labelStyle={{ color: '#f1f5f9' }}
+                    />
+                    <Bar dataKey="count" fill="#10b981" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+            </div>
+
+            <div className="bg-dark-surface/50 border border-dark-border rounded-xl p-5">
+              <h3 className="font-semibold mb-3">Search Trend (Role / Level)</h3>
+              {queryTrends.roleCounts.length === 0 && queryTrends.levelCounts.length === 0 ? (
+                <p className="text-sm text-dark-text/60">No search history yet. Run a few matches to populate this chart.</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={280}>
+                  <BarChart
+                    data={queryTrends.roleCounts.length ? queryTrends.roleCounts : queryTrends.levelCounts}
+                    margin={{ top: 10, right: 20, left: 0, bottom: 40 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                    <XAxis dataKey="name" stroke="#94a3b8" angle={-25} textAnchor="end" height={60} />
+                    <YAxis stroke="#94a3b8" allowDecimals={false} />
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: '#1e293b',
+                        border: '1px solid #334155',
+                        borderRadius: '8px',
+                      }}
+                      labelStyle={{ color: '#f1f5f9' }}
+                    />
+                    <Legend />
+                    <Bar name={queryTrends.roleCounts.length ? 'Role category' : 'Experience level'} dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              )}
+              {queryTrends.roleCounts.length > 0 && queryTrends.levelCounts.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-dark-border">
+                  <p className="text-xs text-dark-text/60 mb-2">Experience Level (Last 50)</p>
+                  <div className="flex flex-wrap gap-2">
+                    {queryTrends.levelCounts.map((l) => (
+                      <span key={l.name} className="px-2 py-1 bg-dark-bg/60 border border-dark-border rounded text-xs">
+                        {l.name}: <span className="font-semibold">{l.count}</span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

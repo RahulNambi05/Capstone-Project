@@ -20,82 +20,90 @@ Goal: copy/paste-friendly, minimal unicode (avoid Windows console encoding issue
 5. [Data Ingestion](#data-ingestion)
 6. [Start Services](#start-services)
 7. [Start Frontend](#start-frontend)
-8. [API Endpoints](#api-endpoints)
-9. [Example Queries](#example-queries)
-10. [Features](#features)
-11. [Project Structure](#project-structure)
-12. [Dataset Info](#dataset-info)
-13. [Known Limitations](#known-limitations)
+8. [Configuration](#configuration)
+9. [API Endpoints](#api-endpoints)
+10. [Example Queries](#example-queries)
+11. [Features](#features)
+12. [Project Structure](#project-structure)
+13. [Dataset Info](#dataset-info)
+14. [Known Limitations](#known-limitations)
 
 ## Overview
 
-This project is an AI-powered system for resume intelligence and candidate matching. It ingests resumes into a local vector store, parses job descriptions into structured requirements, retrieves semantically relevant candidates, and returns ranked results with skill coverage and explanations.
+This project is an AI-powered system for resume intelligence and candidate matching. It ingests resumes into a local vector store, parses job descriptions into structured requirements, retrieves semantically relevant candidates, and returns ranked results with:
+- skill coverage
+- recruiter-style explanations (with Strengths/Gaps bullets)
+- performance metrics per request (execution time and candidates/sec)
 
 Core capabilities:
-- Semantic candidate retrieval using embeddings and vector similarity search
-- LLM-assisted job parsing (required skills, preferred skills, experience level, role category)
-- Skill overlap scoring using a SentenceTransformer model
-- FastAPI gateway + matching microservice architecture
-- React frontend for matching, results review, and analytics
+- Basic RAG candidate retrieval using embeddings + vector similarity search (ChromaDB)
+- Fast job parsing by default (non-LLM) with implicit skill expansion:
+  - UX/UI wording -> frontend skill set
+  - HR wording -> HR skill set
+  - High-level terms like backend/devops/data analysis -> related skills
+- Optional LLM features (time-budgeted, disabled by default for performance)
+- Multi-agent scoring pipeline (technical similarity + semantic skill overlap; experience/culture agents included as placeholders)
+- Input guardrails for job descriptions + resume validation during ingestion
+- Bias detection guardrails (basic) + analytics tracking
+- React frontend for match flow, results review, and analytics (including last-50 search trends stored locally)
 
 ## Architecture
 
 Text-based diagram:
 
-```
-                           +----------------------+
-                           |  React Frontend      |
-                           |  http://localhost:5173
-                           +----------+-----------+
-                                      |
-                                      | REST (JSON)
-                                      v
-                           +----------------------+
-                           |  API Gateway (8000)  |
-                           |  gateway.py (FastAPI)|
-                           +----------+-----------+
-                                      |
-                                      | forwards /api/v1/* to service
-                                      v
-                           +----------------------+
-                           | Matching Service     |
-                           | src/services/...     |
-                           | http://localhost:8001
-                           +----+------------+----+
-                                |            |
-                                |            +-------------------+
-                                |                                |
-                                v                                v
-                     +-------------------+             +-------------------+
-                     | Vector Store      |             | OpenAI API        |
-                     | ChromaDB (persist)|             | - JD parsing      |
-                     | ./data/chroma_db  |             | - soft skills     |
-                     +-------------------+             +-------------------+
-                                |
-                                v
-                     +-------------------+
-                     | Resume Dataset    |
-                     | CSV ingestion     |
-                     +-------------------+
+```text
+                   +------------------------------+
+                   | Frontend (React + Vite)      |
+                   | http://localhost:5173        |
+                   +--------------+---------------+
+                                  |
+                                  | REST (JSON)
+                                  v
+                   +------------------------------+
+                   | API Gateway (FastAPI)        |
+                   | gateway.py                   |
+                   | http://localhost:8000        |
+                   +--------------+---------------+
+                                  |
+                                  | forwards /api/v1/* to service
+                                  v
+                   +------------------------------+
+                   | Matching Service (FastAPI)   |
+                   | src/services/matching_service.py
+                   | http://localhost:8001        |
+                   +-----------+------------------+
+                               |
+                               | semantic_search
+                               v
+                   +------------------------------+
+                   | ChromaDB Vector Store        |
+                   | ./data/chroma_db             |
+                   +------------------------------+
+
+Ingestion (one-time / batch):
+  data/resumes.csv -> src/ingestion/* -> embeddings -> ./data/chroma_db
 ```
 
-## Code Map
+Editable diagram for exporting (PNG/SVG): `docs/architecture.drawio`
 
-- Recommended backend mode: `gateway.py` (port 8000) + `src/services/matching_service.py` (port 8001)
-- Legacy/alternative: monolith API in `src/api/main.py` (started by `main.py`)
-- Full module map: see `docs/CODEMAP.md`
+Notes:
+- Recommended runtime is microservices: Gateway (8000) -> Matching Service (8001).
+- This repository is organized around microservices (gateway + matching service).
+
+Code map: `docs/CODEMAP.md`
+Getting started: `docs/GETTING_STARTED.md`
 
 ## Tech Stack
 
 | Layer | Technology | Notes |
 |------:|------------|------|
-| Frontend | React + Vite | Match flow, results UI, analytics dashboard |
+| Frontend | React + Vite | Match UI, results UI, analytics dashboard |
 | API Gateway | FastAPI + httpx | Single entry point on port 8000 |
-| Matching Service | FastAPI | Matching pipeline, scoring, health, stats |
-| Vector Store | ChromaDB | Persistent embeddings store in `./data/chroma_db` |
-| LLM integration | `langchain-openai` | Job parsing and optional assessments |
-| Skill scoring | `sentence-transformers` | Semantic skill overlap scoring |
-| Data processing | Pandas | CSV ingestion and preprocessing |
+| Matching Service | FastAPI | Retrieval + scoring + explanations + stats + health |
+| Vector Store | ChromaDB | Persistent store in `./data/chroma_db` |
+| Embeddings | OpenAI embeddings | Used for semantic retrieval |
+| Job parsing | Fast parser + optional LLM | Fast by default; LLM optional |
+| Skill scoring | sentence-transformers | Semantic skill overlap scoring |
 
 ## Setup & Installation
 
@@ -129,59 +137,38 @@ pip install -r requirements.txt
 ### Configure environment
 
 Copy the example env file:
-```bash
+
+Windows:
+```powershell
 copy .env.example .env
 ```
 
-Add your OpenAI key:
+macOS/Linux:
+```bash
+cp .env.example .env
+```
+
+Add your key:
 ```env
 OPENAI_API_KEY=sk-...
 ```
 
-Note: the backend loads config from `src/core/config.py` and requires `OPENAI_API_KEY` to be set.
-
 ## Data Ingestion
 
-### Download Kaggle dataset
+### Dataset
 
-Download a resume dataset CSV from Kaggle (commonly named something like `Resume.csv`) and place it in the repository under:
+Place your resume dataset CSV here:
 
 ```text
 data/resumes.csv
 ```
 
-Expected CSV columns (default pipeline settings):
-- `ID` (unique resume identifier)
-- `Resume_str` (full resume text)
-- `Category` (label/category)
+### Run ingestion
 
-If your dataset uses different column names, you can customize them when calling the pipeline.
-
-### Run ingestion command
-
-Recommended: run the ingestion pipeline directly (fast mode without per-resume metadata LLM calls):
+Recommended (fast mode without per-resume metadata LLM calls):
 
 ```bash
 python -c "from src.ingestion.pipeline import run_ingestion_pipeline; import json; print(json.dumps(run_ingestion_pipeline(csv_path='data/resumes.csv', extract_metadata=False, skip_invalid=True), indent=2))"
-```
-
-Notes:
-- `extract_metadata=False` is significantly faster and avoids per-resume LLM calls.
-- Setting `extract_metadata=True` enables richer metadata extraction, but is slower and uses the OpenAI API for each resume.
-
-### Expected output
-
-You should see a JSON summary similar to:
-
-```json
-{
-  "total_processed": 1000,
-  "total_failed": 0,
-  "total_chunks": 38000,
-  "execution_time": 123.45,
-  "timestamp": "2026-03-17T12:34:56.789Z",
-  "details": { "chunks_per_resume": 38 }
-}
 ```
 
 After ingestion, ChromaDB persistence files will appear under:
@@ -221,14 +208,6 @@ Useful URLs:
 - Matching service docs: `http://localhost:8001/docs`
 - Health: `http://localhost:8000/health`
 
-### Performance knobs (optional)
-
-To keep matching fast by default, the matching service supports toggles:
-
-- `ENABLE_LLM_JOB_PARSER=1` to use LLM job parsing (slower; default is fast parser)
-- `ENABLE_LLM_EXPLANATIONS=1` to generate LLM explanations (time-budgeted; default off)
-- `ENABLE_SOFT_SKILLS=1` to run soft skills assessment (time-budgeted; default off)
-
 ## Start Frontend
 
 ```bash
@@ -238,6 +217,27 @@ npm run dev
 ```
 
 Frontend runs on `http://localhost:5173` (Vite default).
+
+## Configuration
+
+The system is designed to be fast by default. Optional LLM-based features are behind env flags.
+
+### Performance toggles (matching service)
+
+- `ENABLE_LLM_JOB_PARSER=1`
+  - Uses LLM job parsing (slower). Default is fast parsing.
+- `ENABLE_LLM_EXPLANATIONS=1`
+  - Generates LLM explanations for top results (time-budgeted). Default off.
+- `ENABLE_SOFT_SKILLS=1`
+  - Runs soft skills assessment (time-budgeted). Default off.
+
+### Client-side analytics storage (frontend)
+
+The frontend stores basic trend metrics in the browser:
+- `rms_query_history` (last 50 successful searches)
+- `rms_queries_processed`
+- `rms_bias_stats`
+- `softSkillsData` (raw soft skill assessments)
 
 ## API Endpoints
 
@@ -282,11 +282,11 @@ Response (trimmed example):
       "semantic_score": 92.0,
       "skill_score": 85.5,
       "skill_coverage": 85.0,
-      "matched_skills": ["python", "docker"],
-      "missing_skills": ["kubernetes"],
+      "matched_skills": ["Python", "Docker"],
+      "missing_skills": ["Kubernetes"],
       "experience_level": "senior",
       "role_category": "backend",
-      "explanation": "Semantic match score 92.0%. Skills: 85% required, 0% preferred. Missing: kubernetes."
+      "explanation": "This profile shows good alignment with the role's priorities. Strengths are most evident in Python and Docker, which map to day-to-day responsibilities. The overall profile suggests they can operate effectively in a senior backend context. Areas to validate in screening include Kubernetes, where evidence is less clear.\\n\\nStrengths:\\n- Python\\n- Docker\\n\\nGaps:\\n- Kubernetes"
     }
   ],
   "total_found": 10,
@@ -306,30 +306,10 @@ Response (trimmed example):
 curl http://localhost:8000/api/v1/stats
 ```
 
-Returns stats such as total resumes, total chunks, and distributions by category/role/level.
-
 ### GET `/health`
 
 ```bash
 curl http://localhost:8000/health
-```
-
-Example response:
-```json
-{
-  "status": "healthy",
-  "gateway": "api_gateway",
-  "timestamp": "2026-03-17T12:34:56.789Z",
-  "services": {
-    "matching": {
-      "status": "healthy",
-      "url": "http://localhost:8001",
-      "service": "matching",
-      "vector_store_ready": true,
-      "total_documents": 38063
-    }
-  }
-}
 ```
 
 ## Example Queries
@@ -351,47 +331,67 @@ We need a data scientist with experience in machine learning, Python, TensorFlow
 We are looking for a senior backend developer with strong experience in Python, REST APIs, Docker, and PostgreSQL. The candidate should have experience building scalable microservices and cloud deployment.
 ```
 
+4) Implicit HR
+```text
+We need someone who manages employee-related processes, supports workplace policies, handles hiring activities, and ensures smooth organizational operations.
+```
+
 ## Features
 
 - Resume ingestion from CSV into ChromaDB (persistent local store)
 - Semantic retrieval of candidates via vector similarity search
 - Job description parsing into structured requirements (skills, level, role)
-- Skill overlap scoring and ranked candidate results
-- Explanations per candidate (human-readable)
-- Health endpoint with service readiness and document counts
-- Analytics dashboard for dataset distributions and local performance metrics
+  - Fast parser by default for low latency (`parse_job_description_fast`)
+  - Optional LLM parser (`ENABLE_LLM_JOB_PARSER=1`)
+  - Implicit skill expansion (UX/UI wording -> frontend skills; HR wording -> HR skills; plus backend/devops/data analysis)
+- Multi-agent evaluation pipeline for scoring (technical + skills; experience/culture agents included as placeholders)
+- Semantic skill matching (sentence-transformers) and ranked candidate results
+- Recruiter-style explanations
+  - Human-readable narrative + Strengths/Gaps bullets
+  - Optional LLM explanations (time-budgeted; `ENABLE_LLM_EXPLANATIONS=1`)
+- Input guardrails and validation
+  - Job description validation to reject gibberish/invalid inputs
+  - Resume validation during ingestion
+- Bias detection guardrails (basic) with tracking for analytics
+- Performance metrics returned per query (`performance` field)
+- Analytics dashboard
+  - Dataset distributions from `/api/v1/stats`
+  - Health and readiness from `/health` via gateway
+  - Local metrics (queries processed, bias stats, soft skills averages)
+  - Skill demand and search trends (last 50 searches stored locally)
 
 ## Project Structure
 
-```
+```text
 .
-├── data/
-│   ├── resumes.csv
-│   └── chroma_db/
-├── examples/
-├── frontend/
-│   ├── package.json
-│   └── src/
-│       ├── pages/
-│       │   ├── Match.jsx
-│       │   ├── Results.jsx
-│       │   └── Analytics.jsx
-│       └── utils/api.js
-├── src/
-│   ├── agents/                 # Skill scoring
-│   ├── api/                    # Optional monolith API app (includes /api/v1/ingest)
-│   ├── core/                   # Configuration and settings
-│   ├── embeddings/             # Vector store access
-│   ├── guardrails/             # Input validation and guardrails
-│   ├── ingestion/              # Resume ingestion pipeline
-│   ├── retrieval/              # JD parsing and candidate retrieval
-│   └── services/               # Matching microservice
-├── gateway.py                  # API gateway (port 8000)
-├── main.py                     # Monolith server entry (optional)
-├── requirements.txt
-├── start_services.bat
-├── start_all_services.bat
-└── README.md
+|-- data/
+|   |-- resumes.csv
+|   `-- chroma_db/
+|-- docs/
+|   |-- CODEMAP.md
+|   `-- architecture.drawio
+|-- frontend/
+|   |-- README.md
+|   |-- package.json
+|   `-- src/
+|       |-- pages/
+|       |   |-- Match.jsx
+|       |   |-- Results.jsx
+|       |   `-- Analytics.jsx
+|       `-- utils/api.js
+|-- src/
+|   |-- agents/
+|   |-- core/
+|   |-- embeddings/
+|   |-- guardrails/
+|   |-- ingestion/
+|   |-- retrieval/
+|   `-- services/
+|-- gateway.py
+|-- requirements.txt
+|-- start_services.bat
+|-- start_all_services.bat
+`-- README.md
 ```
 
 ## Dataset Info
@@ -410,8 +410,9 @@ data/resumes.csv
 
 ## Known Limitations
 
-- Requires `OPENAI_API_KEY` for components that use the OpenAI API (job parsing and optional assessments).
+- Requires `OPENAI_API_KEY` for components that use the OpenAI API (optional LLM parsing, optional LLM explanations, optional soft skills).
 - First request can be slower due to warm-up (model loading / vector store initialization).
 - Local persistence can be large depending on dataset size (disk usage).
 - No authentication/authorization is included (not production-hardened).
 - Soft skills and bias checks are heuristic model outputs and should not be used as automated hiring decisions without governance and human review.
+- Metadata filtering (experience/role/education) is intentionally not enforced during retrieval by default to avoid false negatives when dataset metadata is incomplete.

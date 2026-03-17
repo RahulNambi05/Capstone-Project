@@ -1,0 +1,91 @@
+<mxfile host="app.diagrams.net" modified="2026-03-18T00:00:00.000Z" agent="Codex" version="24.7.8" type="device">
+  <diagram id="workflow" name="Architecture">
+    <mxGraphModel dx="1200" dy="800" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1100" pageHeight="850" math="0" shadow="0">
+      <root>
+        <mxCell id="0"/>
+        <mxCell id="1" parent="0"/>
+
+        <!-- Nodes -->
+        <mxCell id="fe" value="Frontend&#xa;(React + Vite)&#xa;http://localhost:5173" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#111827;strokeColor=#334155;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="40" y="110" width="220" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="gw" value="API Gateway&#xa;(FastAPI)&#xa;gateway.py&#xa;http://localhost:8000" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B1220;strokeColor=#7C3AED;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="320" y="110" width="240" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ms" value="Matching Service&#xa;(FastAPI)&#xa;src/services/matching_service.py&#xa;http://localhost:8001" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B1220;strokeColor=#3B82F6;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="640" y="110" width="280" height="110" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="vs" value="Vector Store&#xa;ChromaDB (persist)&#xa;./data/chroma_db" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B1220;strokeColor=#10B981;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="640" y="280" width="220" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="oa" value="OpenAI API (Optional)&#xa;- JD parsing&#xa;- LLM explanations&#xa;- Soft skills" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B1220;strokeColor=#F59E0B;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="900" y="280" width="240" height="110" as="geometry"/>
+        </mxCell>
+
+        <!-- Ingestion lane -->
+        <mxCell id="lane" value="Ingestion Pipeline (One-time / batch)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#334155;fontColor=#E5E7EB;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="40" y="430" width="1100" height="180" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="csv" value="Resume CSV&#xa;./data/resumes.csv" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#111827;strokeColor=#334155;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="70" y="490" width="200" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="ing" value="Ingestion&#xa;src/ingestion/*&#xa;- clean&#xa;- chunk" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B1220;strokeColor=#7C3AED;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="320" y="480" width="240" height="90" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="emb" value="Embeddings&#xa;(OpenAI)&#xa;src/embeddings/*" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B1220;strokeColor=#F59E0B;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="620" y="490" width="220" height="70" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="vs2" value="ChromaDB Persist&#xa;./data/chroma_db" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0B1220;strokeColor=#10B981;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="900" y="490" width="220" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Optional legacy box -->
+        <mxCell id="legacy" value="Legacy (Optional)&#xa;Monolith API&#xa;src/api/main.py (main.py)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#0F172A;strokeColor=#64748B;dashed=1;fontColor=#E5E7EB;" vertex="1" parent="1">
+          <mxGeometry x="40" y="20" width="220" height="70" as="geometry"/>
+        </mxCell>
+
+        <!-- Edges -->
+        <mxCell id="e1" value="REST JSON" style="endArrow=block;html=1;strokeColor=#94A3B8;fontColor=#E5E7EB;" edge="1" parent="1" source="fe" target="gw">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e2" value="/api/v1/*" style="endArrow=block;html=1;strokeColor=#94A3B8;fontColor=#E5E7EB;" edge="1" parent="1" source="gw" target="ms">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e3" value="semantic_search" style="endArrow=block;html=1;strokeColor=#94A3B8;fontColor=#E5E7EB;" edge="1" parent="1" source="ms" target="vs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e4" value="optional calls" style="endArrow=block;html=1;strokeColor=#94A3B8;fontColor=#E5E7EB;" edge="1" parent="1" source="ms" target="oa">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e5" value="" style="endArrow=block;html=1;strokeColor=#94A3B8;" edge="1" parent="1" source="csv" target="ing">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e6" value="" style="endArrow=block;html=1;strokeColor=#94A3B8;" edge="1" parent="1" source="ing" target="emb">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e7" value="" style="endArrow=block;html=1;strokeColor=#94A3B8;" edge="1" parent="1" source="emb" target="vs2">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+
+        <mxCell id="e8" value="persisted data" style="endArrow=open;html=1;dashed=1;strokeColor=#64748B;fontColor=#E5E7EB;" edge="1" parent="1" source="vs2" target="vs">
+          <mxGeometry relative="1" as="geometry"/>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
+

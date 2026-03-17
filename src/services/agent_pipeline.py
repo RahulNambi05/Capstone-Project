@@ -75,6 +75,33 @@ class AgentPipeline:
         parsed_job: Any,
         resume_text_fallback: str = "",
     ) -> PipelineEvaluation:
+        def _pretty_skill(s: str) -> str:
+            raw = str(s or "").strip()
+            if not raw:
+                return ""
+            key = raw.lower()
+            acronyms = {
+                "api": "API",
+                "rest": "REST",
+                "sql": "SQL",
+                "ux": "UX",
+                "ui": "UI",
+                "hris": "HRIS",
+                "ci/cd": "CI/CD",
+                "aws": "AWS",
+                "gcp": "GCP",
+                "hipaa": "HIPAA",
+            }
+            if key in acronyms:
+                return acronyms[key]
+
+            words = raw.split()
+            pretty_words: list[str] = []
+            for w in words:
+                wk = w.lower()
+                pretty_words.append(acronyms.get(wk, w.capitalize() if w.islower() else w))
+            return " ".join(pretty_words)
+
         technical = self.technical_agent.evaluate(candidate)
         skill = self.skill_agent.evaluate(candidate=candidate, parsed_job=parsed_job, resume_text_fallback=resume_text_fallback)
         experience = self.experience_agent.evaluate(candidate=candidate, parsed_job=parsed_job)
@@ -91,12 +118,8 @@ class AgentPipeline:
         final_score = min(final_score, 100.0)
 
         # Human-friendly explanation (no raw percentages/scores).
-        matched = [str(s).strip() for s in (skill.skill_score.matched_skills or []) if str(s).strip()]
-        missing_required = [
-            str(s).strip()
-            for s in (skill.skill_score.missing_required_skills or [])
-            if str(s).strip()
-        ]
+        matched = [_pretty_skill(s) for s in (skill.skill_score.matched_skills or []) if _pretty_skill(s)]
+        missing_required = [_pretty_skill(s) for s in (skill.skill_score.missing_required_skills or []) if _pretty_skill(s)]
 
         strengths_txt = ", ".join(matched[:3]) if matched else ""
         gaps_txt = ", ".join(missing_required[:3]) if missing_required else ""
