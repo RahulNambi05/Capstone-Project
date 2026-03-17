@@ -42,6 +42,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+
+def _normalize_dataset_category(value: str) -> str:
+    """
+    Normalize Kaggle-style dataset categories into API-safe role_category strings.
+
+    Examples:
+    - "INFORMATION-TECHNOLOGY" -> "information_technology"
+    - "PUBLIC-RELATIONS" -> "public_relations"
+    """
+    raw = str(value or "").strip()
+    if not raw:
+        return "other"
+    lowered = raw.strip().lower().replace("&", "and")
+    lowered = re.sub(r"[^a-z0-9]+", "_", lowered).strip("_")
+    return lowered or "other"
+
 # Global vector store instance
 _vector_store_instance = None
 _vector_store_total_documents: int = 0
@@ -618,6 +634,20 @@ async def match_candidates(request: MatchRequest) -> MatchResponse:
             try:
                 resume_id = candidate.get("resume_id", "unknown")
                 resume_text_full = _get_full_resume_text(resume_id)
+
+                # Improve display consistency: if resume metadata is missing a role_category,
+                # fall back to the dataset category (does not affect retrieval).
+                try:
+                    meta = candidate.get("metadata") or {}
+                    if not isinstance(meta, dict):
+                        meta = {}
+                    rc = str(meta.get("role_category") or "").strip().lower()
+                    if not rc or rc in {"unknown", "other"}:
+                        meta["role_category"] = _normalize_dataset_category(candidate.get("category", "other"))
+                        candidate["metadata"] = meta
+                except Exception:
+                    pass
+
                 eval_result = _agent_pipeline.evaluate_candidate(
                     candidate=candidate,
                     parsed_job=parsed_job,

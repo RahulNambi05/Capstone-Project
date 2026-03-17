@@ -376,7 +376,7 @@ _SKILL_EXPANSION_TRIGGERS: Dict[str, List[str]] = {
     # Keep triggers broad but reasonably specific to avoid false positives.
     "backend": [
         "backend", "back-end", "back end",
-        "api", "apis", "rest", "service", "services", "microservice", "microservices",
+        "api", "apis", "rest", "microservice", "microservices",
         "server", "database", "databases", "backend systems",
     ],
     "frontend": [
@@ -387,7 +387,7 @@ _SKILL_EXPANSION_TRIGGERS: Dict[str, List[str]] = {
         "design system", "design systems",
     ],
     "data analysis": [
-        "data analysis", "analyze data", "analytics", "reporting", "dashboards",
+        "data analysis", "analyze data", "analytics", "dashboards",
         "insights", "data-driven", "data driven",
     ],
     "devops": [
@@ -401,7 +401,7 @@ _SKILL_EXPANSION_TRIGGERS: Dict[str, List[str]] = {
         "recruitment", "recruiting", "talent acquisition", "hiring", "hire",
         "employee relations", "employee engagement", "performance management",
         "onboarding", "offboarding", "payroll", "compensation", "benefits",
-        "hr policy", "policies", "compliance", "hris",
+        "hr policy", "hris",
     ],
 }
 
@@ -424,38 +424,425 @@ _SKILL_PHRASES: List[str] = [
     "compensation", "benefits", "payroll", "hr policy", "hris", "training", "coaching",
     "stakeholder management", "project management", "program management", "process improvement",
     "operations", "customer service", "client management", "sales", "account management",
-    "marketing", "content", "social media", "budgeting", "forecasting", "reporting", "compliance",
+    "marketing", "content", "social media", "seo", "campaigns", "digital media",
+    "public relations", "media relations", "press release",
+    "budgeting", "forecasting", "financial reporting", "accounting", "excel", "reconciliation", "audit", "tax",
+    "banking", "loan processing", "underwriting", "kyc", "aml", "credit analysis", "financial products",
+    "curriculum development", "classroom management", "lesson planning", "student assessment",
+    "lead generation", "crm", "target achievement", "quota", "pipeline",
+    "autocad", "site supervision", "construction planning",
+    "compliance",
     "communication", "collaboration", "leadership", "problem solving", "time management",
     # Healthcare / clinical
     "patient care", "clinical", "treatment planning", "care coordination", "medical procedures",
     "hospital management", "hipaa", "healthcare compliance",
+    # Fitness / wellness
+    "fitness", "personal trainer", "strength training", "nutrition",
+    # Agriculture
+    "agriculture", "farming", "crop", "livestock",
+    # Automotive
+    "automotive", "vehicle maintenance", "engine diagnostics",
+    # Aviation
+    "aviation", "flight operations", "aircraft maintenance",
 ]
 
-_ROLE_RULES: List[Tuple[str, str]] = [
-    ("data scientist", "data_science"),
-    ("data science", "data_science"),
-    ("machine learning", "ml_engineer"),
-    ("ml engineer", "ml_engineer"),
-    ("backend", "backend"),
-    ("microservices", "backend"),
-    ("api", "backend"),
-    ("frontend", "frontend"),
-    ("user experience", "frontend"),
-    ("ux", "frontend"),
-    ("ui", "frontend"),
-    ("user interface", "frontend"),
-    ("web application", "frontend"),
-    ("web applications", "frontend"),
-    ("interface", "frontend"),
-    ("react", "frontend"),
-    ("devops", "devops"),
-    ("kubernetes", "devops"),
-    ("cloud", "cloud_engineer"),
-    ("product manager", "product_manager"),
-    ("security", "security_engineer"),
-    ("qa", "qa_engineer"),
-    ("test automation", "qa_engineer"),
+# Dataset category coverage:
+# Return one of these canonical, API-safe role_category values (underscored):
+# - hr, designer, information_technology, teacher, advocate, business_development,
+#   healthcare, fitness, agriculture, bpo, sales, consultant, digital_media,
+#   automobile, chef, finance, apparel, engineering, accountant, construction,
+#   public_relations, banking, arts, aviation, other
+_CATEGORY_PRIORITY: List[str] = [
+    "information_technology",
+    "healthcare",
+    "finance",
+    "banking",
+    "accountant",
+    "engineering",
+    "construction",
+    "hr",
+    "teacher",
+    "sales",
+    "business_development",
+    "consultant",
+    "designer",
+    "digital_media",
+    "public_relations",
+    "automobile",
+    "chef",
+    "apparel",
+    "fitness",
+    "agriculture",
+    "bpo",
+    "advocate",
+    "arts",
+    "aviation",
 ]
+
+_DATASET_CATEGORY_RULES: Dict[str, Dict[str, List[str]]] = {
+    "hr": {
+        "strong": [
+            r"\bhuman resources\b",
+            r"\bhris\b",
+            r"\bpayroll\b",
+            r"\bonboarding\b",
+            r"\bemployee relations\b",
+            r"\bperformance management\b",
+            r"\bcompensation\b",
+            r"\bbenefits\b",
+            r"\btalent acquisition\b",
+        ],
+        "weak": [
+            r"\brecruitment\b",
+            r"\brecruiting\b",
+            r"\bhiring\b",
+            r"\bpeople ops\b|\bpeople operations\b",
+            r"\bhr\b",
+            r"\bpolic(y|ies)\b",
+        ],
+    },
+    "designer": {
+        "strong": [
+            r"\bux\b",
+            r"\bui\b",
+            r"\bproduct designer\b",
+            r"\bgraphic designer\b",
+            r"\bfigma\b",
+            r"\bphotoshop\b",
+            r"\billustrator\b",
+        ],
+        "weak": [
+            r"\bwireframe(s)?\b",
+            r"\bprototype(s)?\b",
+            r"\bdesign system(s)?\b",
+            r"\btypography\b",
+            r"\bbranding\b",
+        ],
+    },
+    "information_technology": {
+        "strong": [
+            r"\bsoftware\b",
+            r"\bdeveloper\b",
+            r"\bfull[\s-]?stack\b",
+            r"\bbackend\b|\bback[\s-]?end\b",
+            r"\bfrontend\b|\bfront[\s-]?end\b",
+            r"\bapi(s)?\b",
+            r"\brest\b",
+            r"\bmicroservice(s)?\b",
+            r"\bdocker\b",
+            r"\bkubernetes\b",
+            r"\bpython\b",
+            r"\bjava\b",
+            r"\bjavascript\b|\btypescript\b",
+            r"\breact\b",
+            r"\bmachine learning\b|\bdata scientist\b|\btensorflow\b|\bpytorch\b",
+        ],
+        "weak": [
+            r"\bengineer\b",
+            r"\bdatabase(s)?\b",
+            r"\bserver(s)?\b",
+            r"\bsql\b",
+            r"\bcloud\b|\baws\b|\bazure\b|\bgcp\b",
+            r"\bdevops\b|\bci/cd\b|\bpipeline(s)?\b",
+        ],
+    },
+    "teacher": {
+        "strong": [
+            r"\bteacher\b",
+            r"\bclassroom\b",
+            r"\bcurriculum\b",
+            r"\blesson plan(s)?\b",
+            r"\bstudent assessment\b|\bassessment\b",
+        ],
+        "weak": [
+            r"\beducation\b",
+            r"\bschool\b",
+            r"\binstruction\b|\binstructional\b",
+            r"\blearning\b",
+        ],
+    },
+    "advocate": {
+        "strong": [
+            r"\badvocate\b",
+            r"\blitigation\b",
+            r"\bcourt\b",
+            r"\bcontracts?\b",
+            r"\blegal\b",
+        ],
+        "weak": [
+            r"\bcase management\b",
+            r"\bclient advocacy\b",
+            r"\bparalegal\b",
+        ],
+    },
+    "business_development": {
+        "strong": [
+            r"\bbusiness development\b",
+            r"\bstrategic partnership(s)?\b",
+            r"\bpartnership(s)?\b",
+        ],
+        "weak": [
+            r"\bgrowth\b",
+            r"\bmarket expansion\b",
+            r"\baccount management\b",
+        ],
+    },
+    "healthcare": {
+        "strong": [
+            r"\bpatient care\b",
+            r"\bclinical\b",
+            r"\bhospital\b",
+            r"\bhipaa\b",
+            r"\bmedical\b",
+            r"\bnurse\b|\bnursing\b",
+            r"\bphysician\b|\bdoctor\b",
+            r"\btreatment\b|\btreatment planning\b",
+        ],
+        "weak": [
+            r"\bclinic(al)?\b",
+            r"\bcare coordination\b",
+            r"\bmedical procedures?\b",
+            r"\behr\b|\bemr\b",
+            r"\bhealthcare\b|\bhealth care\b",
+        ],
+    },
+    "fitness": {
+        "strong": [
+            r"\bfitness\b",
+            r"\bpersonal trainer\b",
+            r"\bworkout\b",
+            r"\bgym\b",
+            r"\bstrength training\b",
+            r"\bnutrition\b",
+        ],
+        "weak": [
+            r"\bwellness\b",
+            r"\bcoaching\b",
+        ],
+    },
+    "agriculture": {
+        "strong": [
+            r"\bagriculture\b",
+            r"\bfarm(ing)?\b",
+            r"\bcrop(s)?\b",
+            r"\blivestock\b",
+            r"\bhorticulture\b",
+        ],
+        "weak": [
+            r"\birrigation\b",
+            r"\bagronomy\b",
+        ],
+    },
+    "bpo": {
+        "strong": [
+            r"\bbpo\b",
+            r"\bcall center\b",
+            r"\bprocess outsourcing\b",
+        ],
+        "weak": [
+            r"\bcustomer support\b",
+            r"\bback office\b",
+            r"\bvoice process\b",
+        ],
+    },
+    "sales": {
+        "strong": [
+            r"\bsales\b",
+            r"\blead generation\b",
+            r"\bcrm\b",
+            r"\bquota\b|\btarget(s)?\b",
+            r"\bclosing\b",
+        ],
+        "weak": [
+            r"\bclient relationship(s)?\b",
+            r"\bnegotiation\b",
+            r"\bpipeline\b",
+        ],
+    },
+    "consultant": {
+        "strong": [
+            r"\bconsultant\b",
+            r"\bconsulting\b",
+            r"\badvisory\b",
+        ],
+        "weak": [
+            r"\bstrategy\b",
+            r"\bstakeholder(s)?\b",
+            r"\banalysis\b",
+        ],
+    },
+    "digital_media": {
+        "strong": [
+            r"\bdigital media\b",
+            r"\bsocial media\b",
+            r"\bcontent\b",
+            r"\bseo\b|\bsem\b",
+            r"\bcampaign(s)?\b",
+        ],
+        "weak": [
+            r"\bmarketing\b",
+            r"\bengagement\b",
+        ],
+    },
+    "automobile": {
+        "strong": [
+            r"\bautomobile\b|\bautomotive\b",
+            r"\bvehicle(s)?\b",
+            r"\bmechanic\b",
+            r"\bengine diagnostics?\b",
+        ],
+        "weak": [
+            r"\bmaintenance\b",
+            r"\bservice advisor\b",
+        ],
+    },
+    "chef": {
+        "strong": [
+            r"\bchef\b",
+            r"\bkitchen\b",
+            r"\bculinary\b",
+            r"\bmenu planning\b|\bmenu\b",
+            r"\bfood safety\b",
+        ],
+        "weak": [
+            r"\bcooking\b",
+            r"\brestaurant\b",
+        ],
+    },
+    "finance": {
+        "strong": [
+            r"\bfinancial reporting\b",
+            r"\bbudget(ing)?\b",
+            r"\bforecast(ing)?\b",
+            r"\bp&l\b|\bprofit and loss\b",
+            r"\bvariance\b",
+            r"\bgaap\b|\bifrs\b",
+            r"\bfinancial analyst\b",
+        ],
+        "weak": [
+            r"\bexcel\b",
+            r"\bfinancial analysis\b|\banalysis\b",
+            r"\breconciliation(s)?\b",
+            r"\baccounting\b",
+        ],
+    },
+    "apparel": {
+        "strong": [
+            r"\bapparel\b",
+            r"\bgarment(s)?\b",
+            r"\bfashion\b",
+            r"\btextile(s)?\b",
+            r"\bmerchandising\b",
+        ],
+        "weak": [
+            r"\bfabric(s)?\b",
+            r"\bpattern(s)?\b",
+            r"\bretail\b",
+        ],
+    },
+    "engineering": {
+        "strong": [
+            r"\bcivil engineer\b",
+            r"\bmechanical engineer\b",
+            r"\belectrical engineer\b",
+            r"\bautocad\b",
+            r"\bsite supervision\b",
+            r"\bconstruction planning\b",
+        ],
+        "weak": [
+            r"\bengineering\b",
+            r"\bengineering drawings?\b|\bdrawings?\b",
+        ],
+    },
+    "accountant": {
+        "strong": [
+            r"\baccountant\b",
+            r"\baccounts payable\b|\bap\b",
+            r"\baccounts receivable\b|\bar\b",
+            r"\bbookkeeping\b",
+            r"\bjournal entries?\b|\bjournal entry\b",
+            r"\btax\b",
+        ],
+        "weak": [
+            r"\bledger\b",
+            r"\breconciliation(s)?\b",
+            r"\baudit\b",
+        ],
+    },
+    "construction": {
+        "strong": [
+            r"\bconstruction\b",
+            r"\bsite supervision\b",
+            r"\bcontractor(s)?\b",
+            r"\bproject site\b|\bsite\b",
+            r"\bconstruction safety\b|\bsafety\b",
+        ],
+        "weak": [
+            r"\bforeman\b",
+            r"\bbuilding\b",
+        ],
+    },
+    "public_relations": {
+        "strong": [
+            r"\bpublic relations\b",
+            r"\bmedia relations\b",
+            r"\bpress release(s)?\b",
+        ],
+        "weak": [
+            r"\bcommunications?\b",
+            r"\bbrand reputation\b",
+        ],
+    },
+    "banking": {
+        "strong": [
+            r"\bbanking\b|\bbanker\b",
+            r"\bloan processing\b|\bloans?\b",
+            r"\bunderwriting\b",
+            r"\bkyc\b|\baml\b",
+            r"\bteller\b|\bbranch\b",
+            r"\bcredit analysis\b|\bcredit\b",
+        ],
+        "weak": [
+            r"\bfinancial products?\b",
+            r"\bdeposits?\b",
+            r"\bcompliance\b",
+            r"\bcustomer service\b",
+        ],
+    },
+    "arts": {
+        "strong": [
+            r"\barts?\b",
+            r"\bartist\b",
+            r"\billustration\b",
+            r"\bpainting\b",
+            r"\bmusic\b",
+            r"\btheatre\b|\btheater\b",
+        ],
+        "weak": [
+            r"\bcreative\b",
+        ],
+    },
+    "aviation": {
+        "strong": [
+            r"\baviation\b",
+            r"\baircraft\b",
+            r"\bflight operations\b",
+            r"\bairline\b",
+            r"\baircraft maintenance\b|\bmaintenance\b",
+        ],
+        "weak": [
+            r"\bsafety compliance\b|\bcompliance\b",
+        ],
+    },
+}
+
+_DATASET_CATEGORY_REGEX: Dict[str, Dict[str, List[re.Pattern]]] = {
+    cat: {
+        "strong": [re.compile(p, re.IGNORECASE) for p in rules.get("strong", [])],
+        "weak": [re.compile(p, re.IGNORECASE) for p in rules.get("weak", [])],
+    }
+    for cat, rules in _DATASET_CATEGORY_RULES.items()
+}
 
 
 def _expand_skills(text: str, extracted_skills: List[str], role_category: str = "") -> List[str]:
@@ -499,7 +886,7 @@ def _expand_skills(text: str, extracted_skills: List[str], role_category: str = 
 
             # Short tokens like "ui"/"ux" should match as whole words.
             if len(tt) <= 2 and tt.isalnum():
-                if re.search(rf"\\b{re.escape(tt)}\\b", text_lower):
+                if re.search(rf"\b{re.escape(tt)}\b", text_lower):
                     return True
                 continue
 
@@ -526,10 +913,49 @@ def _infer_experience_level(text_lower: str) -> str:
 
 
 def _infer_role_category(text_lower: str) -> str:
-    for needle, role in _ROLE_RULES:
-        if needle in text_lower:
-            return role
-    return "other"
+    """
+    Infer a dataset-aligned role category from free-form job description text.
+
+    Goals:
+    - Cover the 24 dataset categories with conservative rules
+    - Prefer precision over forced classification (avoid false positives)
+    - Keep "other" as a safe fallback when signals are ambiguous
+    """
+    text = (text_lower or "").strip()
+    if not text:
+        return "other"
+
+    # Score each category using strong/weak keyword hits.
+    scored: List[Tuple[int, int, str]] = []
+    for cat, rules in _DATASET_CATEGORY_REGEX.items():
+        strong_hits = sum(1 for rx in rules.get("strong", []) if rx.search(text))
+        weak_hits = sum(1 for rx in rules.get("weak", []) if rx.search(text))
+        score = (strong_hits * 2) + weak_hits
+        if score > 0:
+            scored.append((score, strong_hits, cat))
+
+    if not scored:
+        return "other"
+
+    # Sort by score desc, then strong hits desc, then category priority.
+    priority_rank = {c: i for i, c in enumerate(_CATEGORY_PRIORITY)}
+    scored.sort(key=lambda t: (-t[0], -t[1], priority_rank.get(t[2], 10_000)))
+
+    best_score, best_strong, best_cat = scored[0]
+    second_score = scored[1][0] if len(scored) > 1 else -1
+
+    # Require at least one strong signal OR multiple weak signals.
+    # This prevents accidental classification from generic words like "analysis".
+    if best_score < 2:
+        return "other"
+
+    # If ambiguity is high (tie or near-tie), fall back to "other" for safety.
+    if second_score == best_score:
+        return "other"
+    if (best_score - second_score) == 1 and best_score < 4:
+        return "other"
+
+    return best_cat
 
 
 def _extract_skills(text: str) -> List[str]:
@@ -544,7 +970,7 @@ def _extract_skills(text: str) -> List[str]:
 
     text_lower = text.lower()
     normalized = re.sub(r"[^a-z0-9+#/\\s]", " ", text_lower)
-    normalized = re.sub(r"\\s+", " ", normalized).strip()
+    normalized = re.sub(r"\s+", " ", normalized).strip()
     padded = f" {normalized} "
 
     found: List[str] = []
@@ -563,7 +989,7 @@ def _extract_skills(text: str) -> List[str]:
             continue
 
         if len(p) <= 2:
-            if re.search(rf"\\b{re.escape(p)}\\b", normalized):
+            if re.search(rf"\b{re.escape(p)}\b", normalized):
                 found.append(phrase)
 
     deduped: List[str] = []
