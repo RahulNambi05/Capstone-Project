@@ -16,7 +16,7 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-dark-surface;
+  @apply bg-dark-bg;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -60,11 +60,11 @@ body {
 
 /* Utility classes */
 .glass-effect {
-  @apply backdrop-blur-md bg-dark-surface bg-opacity-50 border border-dark-border;
+  @apply backdrop-blur-md bg-dark-surface/85 border border-dark-border;
 }
 
 .btn-primary {
-  @apply px-6 py-2.5 bg-gradient-dark text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-primary/50 transition-all duration-200;
+  @apply px-6 py-2.5 bg-gradient-dark text-white rounded-lg font-semibold hover:shadow-lg hover:shadow-primary/20 transition-all duration-200;
 }
 
 .btn-secondary {
@@ -72,9 +72,9 @@ body {
 }
 
 .card {
-  @apply bg-dark-surface rounded-lg border border-dark-border p-6 hover:border-primary/50 transition-all duration-200;
+  @apply bg-dark-surface rounded-lg border border-dark-border p-6 shadow-sm hover:shadow-md hover:border-primary/30 transition-all duration-200;
 }
 
 .input-field {
-  @apply w-full bg-dark-surface border border-dark-border text-dark-text rounded-lg px-4 py-2.5 focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200;
+  @apply w-full bg-dark-surface border border-dark-border text-dark-text rounded-lg px-4 py-2.5 shadow-sm focus:outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all duration-200;
 }

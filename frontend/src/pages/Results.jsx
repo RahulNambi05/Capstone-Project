@@ -41,16 +41,46 @@ function Results() {
   const candidates = results.candidates || []
   const parsedJob = results.parsed_job || {}
 
+  const formatLabel = (value) => {
+    const raw = String(value || '').trim()
+    if (!raw) return '—'
+
+    const lower = raw.toLowerCase()
+    const acronyms = {
+      hr: 'HR',
+      bpo: 'BPO',
+      ui: 'UI',
+      ux: 'UX',
+      api: 'API',
+      rest: 'REST',
+      sql: 'SQL',
+      aws: 'AWS',
+      gcp: 'GCP',
+      emr: 'EMR',
+      ehr: 'EHR',
+      hris: 'HRIS',
+      'ci/cd': 'CI/CD',
+    }
+    if (acronyms[lower]) return acronyms[lower]
+
+    return lower
+      .replace(/[-_]+/g, ' ')
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => acronyms[w] || w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+  }
+
   const getScoreColor = (score) => {
-    if (score >= 80) return 'text-green-400'
-    if (score >= 60) return 'text-yellow-400'
-    return 'text-red-400'
+    if (score >= 80) return 'text-green-600'
+    if (score >= 60) return 'text-yellow-600'
+    return 'text-red-600'
   }
 
   const getScoreBgColor = (score) => {
-    if (score >= 80) return 'bg-green-950/30 border-green-700/50'
-    if (score >= 60) return 'bg-yellow-950/30 border-yellow-700/50'
-    return 'bg-red-950/30 border-red-700/50'
+    if (score >= 80) return 'bg-green-50 border-green-200'
+    if (score >= 60) return 'bg-yellow-50 border-yellow-200'
+    return 'bg-red-50 border-red-200'
   }
 
   const filteredCandidates = candidates.filter((candidate) => {
@@ -74,9 +104,13 @@ function Results() {
             <span>Back to Search</span>
           </button>
 
-          <h1 className="text-4xl font-bold mb-4">Candidate Matches</h1>
+          <h1 className="text-4xl md:text-5xl font-extrabold mb-3">
+            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Candidate Matches
+            </span>
+          </h1>
           <p className="text-lg text-dark-text/70">
-            Found {candidates.length} qualified candidates
+            Found <span className="font-semibold text-dark-text">{candidates.length}</span> candidates
           </p>
         </div>
 
@@ -86,11 +120,11 @@ function Results() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
               <p className="text-sm text-dark-text/60">Role</p>
-              <p className="font-semibold text-primary">{parsedJob.role_category}</p>
+              <p className="font-semibold text-primary">{formatLabel(parsedJob.role_category)}</p>
             </div>
             <div>
               <p className="text-sm text-dark-text/60">Level</p>
-              <p className="font-semibold text-primary">{parsedJob.experience_level}</p>
+              <p className="font-semibold text-primary">{formatLabel(parsedJob.experience_level)}</p>
             </div>
             <div>
               <p className="text-sm text-dark-text/60">Required Skills</p>
@@ -110,13 +144,13 @@ function Results() {
               {parsedJob.required_skills?.slice(0, 10).map((skill, index) => (
                 <span
                   key={index}
-                  className="px-3 py-1 bg-primary/20 text-primary rounded-full text-sm"
+                  className="px-3 py-1 bg-primary/10 text-primary rounded-full text-sm"
                 >
-                  {skill}
+                  {formatLabel(skill)}
                 </span>
               ))}
               {parsedJob.required_skills?.length > 10 && (
-                <span className="px-3 py-1 bg-dark-surface border border-dark-border rounded-full text-sm">
+                <span className="px-3 py-1 bg-dark-bg border border-dark-border rounded-full text-sm">
                   +{parsedJob.required_skills.length - 10} more
                 </span>
               )}
@@ -127,21 +161,21 @@ function Results() {
         {/* Performance Metrics */}
         <div className="mb-8 animate-fadeIn">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-green-950/25 border border-green-700/40 rounded-xl px-5 py-4">
-              <p className="text-xs text-green-200/80 mb-1">Candidates per second</p>
-              <p className="text-2xl font-bold text-green-200">
+            <div className="bg-secondary/10 border border-secondary/30 rounded-xl px-5 py-4">
+              <p className="text-xs text-dark-text/60 mb-1">Candidates per second</p>
+              <p className="text-2xl font-bold text-secondary">
                 {results.performance?.candidates_per_second ?? '\u2014'}
               </p>
             </div>
-            <div className="bg-green-950/25 border border-green-700/40 rounded-xl px-5 py-4">
-              <p className="text-xs text-green-200/80 mb-1">Total candidates found</p>
-              <p className="text-2xl font-bold text-green-200">
+            <div className="bg-secondary/10 border border-secondary/30 rounded-xl px-5 py-4">
+              <p className="text-xs text-dark-text/60 mb-1">Total candidates found</p>
+              <p className="text-2xl font-bold text-secondary">
                 {results.performance?.total_candidates ?? '\u2014'}
               </p>
             </div>
-            <div className="bg-green-950/25 border border-green-700/40 rounded-xl px-5 py-4">
-              <p className="text-xs text-green-200/80 mb-1">Execution time</p>
-              <p className="text-2xl font-bold text-green-200">
+            <div className="bg-secondary/10 border border-secondary/30 rounded-xl px-5 py-4">
+              <p className="text-xs text-dark-text/60 mb-1">Execution time</p>
+              <p className="text-2xl font-bold text-secondary">
                 {results.performance?.execution_time_seconds ?? '\u2014'}s
               </p>
             </div>
@@ -184,7 +218,10 @@ function Results() {
             </div>
           ) : (
             filteredCandidates.map((candidate, index) => (
-              <div key={index} className="card glass-effect hover:border-primary/50 animate-fadeIn">
+              <div
+                key={index}
+                className="card glass-effect hover:border-primary/50 transition-shadow animate-fadeIn"
+              >
                 <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                   {/* Candidate Info */}
                   <div className="flex-1">
@@ -204,14 +241,14 @@ function Results() {
                     </div>
 
                     {/* Experience Info */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4 bg-secondary/5 border border-secondary/20 rounded-xl p-4">
                       <div>
                         <p className="text-xs text-dark-text/60">Experience Level</p>
-                        <p className="font-semibold text-sm">{candidate.experience_level}</p>
+                        <p className="font-semibold text-sm">{formatLabel(candidate.experience_level)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-dark-text/60">Role Category</p>
-                        <p className="font-semibold text-sm">{candidate.role_category}</p>
+                        <p className="font-semibold text-sm">{formatLabel(candidate.role_category)}</p>
                       </div>
                       <div>
                         <p className="text-xs text-dark-text/60">Semantic Score</p>
@@ -229,7 +266,7 @@ function Results() {
 
                     {/* Why this candidate? */}
                     <div
-                      className="mb-4 bg-blue-950/25 border border-blue-700/40 text-blue-100 px-4 py-3 rounded-lg"
+                      className="mb-4 bg-secondary/10 border border-secondary/30 text-dark-text px-4 py-3 rounded-lg"
                       role="note"
                     >
                       <div className="flex items-center gap-2 mb-1">
@@ -238,9 +275,9 @@ function Results() {
                         </span>
                         <p className="font-semibold text-sm">Why this candidate?</p>
                       </div>
-                      <p className="text-sm text-blue-100/90 leading-relaxed whitespace-pre-line">
+                      <p className="text-sm text-dark-text/80 leading-relaxed whitespace-pre-line">
                         {candidate.explanation ||
-                          `This ${candidate.experience_level} ${candidate.role_category} professional matches ${candidate.skill_coverage}% of required skills. Strong in: ${(candidate.matched_skills || []).slice(0, 2).join(', ')}. Missing: ${(candidate.missing_skills || []).slice(0, 2).join(', ')}. Overall: ${candidate.final_score > 70 ? 'Strong' : candidate.final_score > 50 ? 'Moderate' : 'Partial'} match.`}
+                          `This ${formatLabel(candidate.experience_level)} ${formatLabel(candidate.role_category)} professional matches ${candidate.skill_coverage}% of required skills. Strong in: ${(candidate.matched_skills || []).slice(0, 2).map(formatLabel).join(', ')}. Missing: ${(candidate.missing_skills || []).slice(0, 2).map(formatLabel).join(', ')}. Overall: ${candidate.final_score > 70 ? 'Strong' : candidate.final_score > 50 ? 'Moderate' : 'Partial'} match.`}
                       </p>
                     </div>
 
@@ -251,14 +288,14 @@ function Results() {
                         {candidate.matched_skills?.slice(0, 5).map((skill, i) => (
                           <span
                             key={i}
-                            className="px-2 py-1 bg-green-950/30 text-green-400 rounded text-xs flex items-center space-x-1"
+                            className="px-2 py-1 bg-green-50 text-green-700 border border-green-200 rounded text-xs flex items-center space-x-1"
                           >
                             <FaCheckCircle className="w-3 h-3" />
-                            <span>{skill}</span>
+                            <span>{formatLabel(skill)}</span>
                           </span>
                         ))}
                         {candidate.matched_skills?.length > 5 && (
-                          <span className="px-2 py-1 bg-dark-surface border border-dark-border rounded text-xs">
+                          <span className="px-2 py-1 bg-dark-bg border border-dark-border rounded text-xs">
                             +{candidate.matched_skills.length - 5} more
                           </span>
                         )}
@@ -273,10 +310,10 @@ function Results() {
                           {candidate.missing_skills.slice(0, 3).map((skill, i) => (
                             <span
                               key={i}
-                              className="px-2 py-1 bg-red-950/30 text-red-400 rounded text-xs flex items-center space-x-1"
+                              className="px-2 py-1 bg-red-50 text-red-700 border border-red-200 rounded text-xs flex items-center space-x-1"
                             >
                               <FaTimesCircle className="w-3 h-3" />
-                              <span>{skill}</span>
+                              <span>{formatLabel(skill)}</span>
                             </span>
                           ))}
                         </div>

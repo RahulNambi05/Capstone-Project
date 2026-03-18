@@ -7,17 +7,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        primary: "#7c3aed", // violet-600
-        secondary: "#3b82f6", // blue-500
+        // Brand accents (modern, bright but not harsh)
+        primary: "#7c3aed", // violet
+        secondary: "#14b8a6", // teal
         dark: {
-          bg: "#0f172a", // slate-950
-          surface: "#1e293b", // slate-800
-          border: "#334155", // slate-700
-          text: "#f1f5f9", // slate-100
+          // We keep the existing class names (bg-dark-*) for stability,
+          // but map them to a clean light UI palette.
+          bg: "#f6f7fb", // soft off-white
+          surface: "#ffffff", // white cards
+          border: "#e5e7eb", // gray-200
+          text: "#0f172a", // slate-900
         },
       },
       backgroundImage: {
-        "gradient-dark": "linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%)",
+        "gradient-dark": "linear-gradient(135deg, #7c3aed 0%, #14b8a6 100%)",
       },
     },
   },

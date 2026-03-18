@@ -38,6 +38,36 @@ function Analytics() {
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
 
+  const formatLabel = useCallback((value) => {
+    const raw = String(value || '').trim()
+    if (!raw) return '—'
+
+    const lower = raw.toLowerCase()
+    const acronyms = {
+      hr: 'HR',
+      bpo: 'BPO',
+      ui: 'UI',
+      ux: 'UX',
+      api: 'API',
+      rest: 'REST',
+      sql: 'SQL',
+      aws: 'AWS',
+      gcp: 'GCP',
+      emr: 'EMR',
+      ehr: 'EHR',
+      hris: 'HRIS',
+      'ci/cd': 'CI/CD',
+    }
+    if (acronyms[lower]) return acronyms[lower]
+
+    return lower
+      .replace(/[-_]+/g, ' ')
+      .split(' ')
+      .filter(Boolean)
+      .map((w) => acronyms[w] || w.charAt(0).toUpperCase() + w.slice(1))
+      .join(' ')
+  }, [])
+
   const safeJsonParse = useCallback((value, fallback) => {
     try {
       if (!value) return fallback
@@ -290,20 +320,20 @@ function Analytics() {
         <div className="card glass-effect mb-8">
           <h2 className="text-xl font-bold mb-4">AI Performance Metrics</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
               <p className="text-sm text-dark-text/60 mb-1">Avg Execution Time</p>
               <p className="text-2xl font-bold text-primary">{baselineExecutionTime}</p>
               <p className="text-xs text-dark-text/50 mt-1">Baseline</p>
             </div>
-            <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
               <p className="text-sm text-dark-text/60 mb-1">Avg Tokens / Query</p>
               <p className="text-2xl font-bold text-secondary">{avgTokensPerQuery}</p>
             </div>
-            <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
               <p className="text-sm text-dark-text/60 mb-1">Est. Cost / Query</p>
               <p className="text-2xl font-bold text-green-400">${estimatedCostPerQuery}</p>
             </div>
-            <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
               <p className="text-sm text-dark-text/60 mb-1">Total Queries</p>
               <p className="text-2xl font-bold text-blue-400">{localMetrics.queriesProcessed}</p>
               <p className="text-xs text-dark-text/50 mt-1">Stored in localStorage</p>
@@ -323,7 +353,7 @@ function Analytics() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-dark-surface/50 border border-dark-border rounded-xl p-5">
+            <div className="bg-dark-surface border border-dark-border rounded-xl p-5 shadow-sm">
               <h3 className="font-semibold mb-3">Skill Demand (Top Skills)</h3>
               {queryTrends.topSkills.length === 0 ? (
                 <p className="text-sm text-dark-text/60">No search history yet. Run a few matches to populate this chart.</p>
@@ -331,7 +361,7 @@ function Analytics() {
                 <ResponsiveContainer width="100%" height={280}>
                   <BarChart data={queryTrends.topSkills} margin={{ top: 10, right: 20, left: 0, bottom: 40 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="name" stroke="#94a3b8" angle={-35} textAnchor="end" height={70} />
+                    <XAxis dataKey="name" stroke="#94a3b8" angle={-35} textAnchor="end" height={70} tickFormatter={formatLabel} />
                     <YAxis stroke="#94a3b8" allowDecimals={false} />
                     <Tooltip
                       contentStyle={{
@@ -340,6 +370,7 @@ function Analytics() {
                         borderRadius: '8px',
                       }}
                       labelStyle={{ color: '#f1f5f9' }}
+                      labelFormatter={(v) => formatLabel(v)}
                     />
                     <Bar dataKey="count" fill="#10b981" radius={[8, 8, 0, 0]} />
                   </BarChart>
@@ -347,7 +378,7 @@ function Analytics() {
               )}
             </div>
 
-            <div className="bg-dark-surface/50 border border-dark-border rounded-xl p-5">
+            <div className="bg-dark-surface border border-dark-border rounded-xl p-5 shadow-sm">
               <h3 className="font-semibold mb-3">Search Trend (Role / Level)</h3>
               {queryTrends.roleCounts.length === 0 && queryTrends.levelCounts.length === 0 ? (
                 <p className="text-sm text-dark-text/60">No search history yet. Run a few matches to populate this chart.</p>
@@ -358,7 +389,7 @@ function Analytics() {
                     margin={{ top: 10, right: 20, left: 0, bottom: 40 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="name" stroke="#94a3b8" angle={-25} textAnchor="end" height={60} />
+                    <XAxis dataKey="name" stroke="#94a3b8" angle={-25} textAnchor="end" height={60} tickFormatter={formatLabel} />
                     <YAxis stroke="#94a3b8" allowDecimals={false} />
                     <Tooltip
                       contentStyle={{
@@ -367,6 +398,7 @@ function Analytics() {
                         borderRadius: '8px',
                       }}
                       labelStyle={{ color: '#f1f5f9' }}
+                      labelFormatter={(v) => formatLabel(v)}
                     />
                     <Legend />
                     <Bar name={queryTrends.roleCounts.length ? 'Role category' : 'Experience level'} dataKey="count" fill="#3b82f6" radius={[8, 8, 0, 0]} />
@@ -379,7 +411,7 @@ function Analytics() {
                   <div className="flex flex-wrap gap-2">
                     {queryTrends.levelCounts.map((l) => (
                       <span key={l.name} className="px-2 py-1 bg-dark-bg/60 border border-dark-border rounded text-xs">
-                        {l.name}: <span className="font-semibold">{l.count}</span>
+                        {formatLabel(l.name)}: <span className="font-semibold">{l.count}</span>
                       </span>
                     ))}
                   </div>
@@ -394,15 +426,15 @@ function Analytics() {
           <div className="card glass-effect">
             <h2 className="text-xl font-bold mb-4">Bias Detection Stats</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+              <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
                 <p className="text-sm text-dark-text/60 mb-1">Bias Free Queries</p>
                 <p className="text-2xl font-bold text-green-400">{biasFreePct}%</p>
               </div>
-              <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+              <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
                 <p className="text-sm text-dark-text/60 mb-1">Biased Queries</p>
                 <p className="text-2xl font-bold text-red-400">{biasedCount}</p>
               </div>
-              <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+              <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
                 <p className="text-sm text-dark-text/60 mb-1">Clean Queries</p>
                 <p className="text-2xl font-bold text-primary">{cleanCount}</p>
               </div>
@@ -446,19 +478,19 @@ function Analytics() {
           <div className="card glass-effect">
             <h2 className="text-xl font-bold mb-4">Soft Skills Distribution</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-              <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+              <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
                 <p className="text-sm text-dark-text/60 mb-1">Avg Communication</p>
                 <p className="text-2xl font-bold text-primary">
                   {softCount ? softSkills.communication : 0}
                 </p>
               </div>
-              <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+              <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
                 <p className="text-sm text-dark-text/60 mb-1">Avg Leadership</p>
                 <p className="text-2xl font-bold text-secondary">
                   {softCount ? softSkills.leadership : 0}
                 </p>
               </div>
-              <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+              <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
                 <p className="text-sm text-dark-text/60 mb-1">Avg Problem Solving</p>
                 <p className="text-2xl font-bold text-green-400">
                   {softCount ? softSkills.problemSolving : 0}
@@ -495,7 +527,7 @@ function Analytics() {
         <div className="card glass-effect mb-8">
           <h2 className="text-xl font-bold mb-4">System Health</h2>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
               <p className="text-sm text-dark-text/60 mb-1">Gateway</p>
               <div className="flex items-center gap-2">
                 <span className={statusDot(health?.status === 'healthy')} />
@@ -503,7 +535,7 @@ function Analytics() {
               </div>
               <p className="text-xs text-dark-text/50 mt-1">http://localhost:8000/health</p>
             </div>
-            <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
               <p className="text-sm text-dark-text/60 mb-1">Matching Service</p>
               <div className="flex items-center gap-2">
                 <span className={statusDot(health?.services?.matching?.status === 'healthy')} />
@@ -511,13 +543,13 @@ function Analytics() {
               </div>
               <p className="text-xs text-dark-text/50 mt-1">via http://localhost:8000/health</p>
             </div>
-            <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
               <p className="text-sm text-dark-text/60 mb-1">Vector Store Docs</p>
               <p className="text-2xl font-bold text-blue-400">
                 {health?.services?.matching?.total_documents || 0}
               </p>
             </div>
-            <div className="bg-dark-surface/50 border border-dark-border rounded-lg p-4">
+            <div className="bg-dark-surface border border-dark-border rounded-lg p-4 shadow-sm">
               <p className="text-sm text-dark-text/60 mb-1">Vector Store Ready</p>
               <div className="flex items-center gap-2">
                 <span className={statusDot(Boolean(health?.services?.matching?.vector_store_ready))} />

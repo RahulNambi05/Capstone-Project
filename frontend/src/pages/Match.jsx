@@ -215,7 +215,11 @@ function Match() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-12 animate-fadeIn">
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">Find Candidates</h1>
+          <h1 className="text-4xl md:text-5xl font-extrabold mb-4">
+            <span className="bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
+              Find Candidates
+            </span>
+          </h1>
           <p className="text-lg text-dark-text/70 max-w-2xl mx-auto">
             Paste your job description and let our AI find the best matching candidates from our database of 38,000+ resumes
           </p>
@@ -243,12 +247,12 @@ function Match() {
                     <p className="text-sm text-dark-text/60">
                       {wordCount} words
                       {wordCount < 20 && (
-                        <span className="text-yellow-400 ml-2">
+                        <span className="text-yellow-600 ml-2">
                           Minimum 20 words required ({20 - wordCount} more needed)
                         </span>
                       )}
                       {wordCount >= 20 && (
-                        <span className="text-green-400 ml-2">
+                        <span className="text-green-600 ml-2">
                           {'\u2713'} Ready to match
                         </span>
                       )}
@@ -269,7 +273,7 @@ function Match() {
                       max="20"
                       value={topK}
                       onChange={(e) => setTopK(parseInt(e.target.value))}
-                      className="flex-1 h-2 bg-dark-surface rounded-lg appearance-none cursor-pointer accent-primary"
+                      className="flex-1 h-2 bg-dark-bg rounded-lg appearance-none cursor-pointer accent-primary"
                       disabled={loading}
                     />
                     <div className="flex items-center space-x-2">
@@ -299,13 +303,13 @@ function Match() {
                 {error && (
                   <div
                     role="alert"
-                    className="animate-fadeIn bg-red-950/50 border border-red-700/80 text-red-100 px-4 py-3 rounded-lg flex items-start gap-3 shadow-md transition-opacity duration-200"
+                    className="animate-fadeIn bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-start gap-3 shadow-sm transition-opacity duration-200"
                   >
                     <p className="flex-1 text-sm md:text-base font-medium leading-relaxed">{error}</p>
                     <button
                       type="button"
                       onClick={() => setError('')}
-                      className="ml-2 text-red-100/70 hover:text-red-100 transition-colors leading-none"
+                      className="ml-2 text-red-700/70 hover:text-red-800 transition-colors leading-none"
                       aria-label="Dismiss error"
                     >
                       X
@@ -352,7 +356,7 @@ function Match() {
                     key={index}
                     onClick={() => handleExampleClick(example.description)}
                     disabled={loading}
-                    className="card group w-full text-left hover:border-primary/50 hover:bg-dark-surface/80 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="card group w-full text-left hover:border-primary/30 hover:bg-dark-surface transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <div className="flex items-start space-x-3">
                       <div className="w-10 h-10 rounded-lg bg-gradient-dark flex items-center justify-center flex-shrink-0">
